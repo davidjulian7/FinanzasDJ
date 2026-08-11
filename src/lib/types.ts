@@ -66,6 +66,21 @@ export interface DebtRow {
   fechaInicio: string;
 }
 
+export interface CuotaRow {
+  id: number;
+  accountId: number;
+  descripcion: string;
+  monto: number;
+  meses: number;
+  tasaAnual: number;
+  cuota: number;
+  total: number;
+  pagadas: number;
+  fecha: string;
+  transactionId: number;
+  cuenta: string;
+}
+
 export interface BudgetItem {
   categoriaId: number;
   nombre: string;

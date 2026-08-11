@@ -66,6 +66,28 @@ export const debts = sqliteTable("debts", {
   fechaInicio: text("fecha_inicio").notNull(),
 });
 
+export const cuotas = sqliteTable(
+  "cuotas",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => accounts.id),
+    descripcion: text("descripcion").notNull(),
+    monto: real("monto").notNull(),
+    meses: integer("meses").notNull(),
+    tasaAnual: real("tasa_anual").notNull().default(0),
+    cuota: real("cuota").notNull(),
+    total: real("total").notNull(),
+    pagadas: integer("pagadas").notNull().default(0),
+    fecha: text("fecha").notNull(),
+    transactionId: integer("transaction_id")
+      .notNull()
+      .references(() => transactions.id),
+  },
+  (t) => [index("idx_cuotas_account").on(t.accountId)]
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
@@ -79,3 +101,5 @@ export type NewTransaction = typeof transactions.$inferInsert;
 export type Budget = typeof budgets.$inferSelect;
 export type Debt = typeof debts.$inferSelect;
 export type NewDebt = typeof debts.$inferInsert;
+export type Cuota = typeof cuotas.$inferSelect;
+export type NewCuota = typeof cuotas.$inferInsert;

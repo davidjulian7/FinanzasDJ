@@ -3,7 +3,7 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import { db } from "../src/lib/db";
-import { accounts, budgets, categories, debts, settings, transactions } from "../src/lib/db/schema";
+import { accounts, budgets, categories, cuotas, debts, settings, transactions } from "../src/lib/db/schema";
 
 const FORCE = process.argv.includes("--force");
 
@@ -137,6 +137,7 @@ export function seedFromExcel(ruta: string): { cuentaFile: string; cuentas: numb
     throw new Error("La base de datos ya tiene datos. Ejecutá con --force para reemplazarlos por los del Excel.");
   }
   if (tieneDatos) {
+    db.delete(cuotas).run();
     db.delete(budgets).run();
     db.delete(debts).run();
     db.delete(transactions).run();

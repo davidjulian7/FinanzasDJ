@@ -87,11 +87,15 @@ export default function AccountsPage() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {(cuentas ?? [])
                     .filter((c) => sec.tipos.includes(c.tipo))
+                    .sort((a, b) => b.saldoActual - a.saldoActual)
                     .map((c) => (
                       <AccountCard
                         key={c.id}
                         cuenta={c}
-                        onEdit={setEditando}
+                        onEdit={(cuenta) => {
+                          setEditando(cuenta);
+                          setModalOpen(true);
+                        }}
                         onDelete={setEliminando}
                       />
                     ))}

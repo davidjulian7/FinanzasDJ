@@ -24,8 +24,12 @@ export function AccountCard({
   onDelete?: (c: AccountRow) => void;
 }) {
   const esCredito = cuenta.tipo === "credito";
-  const disponible = esCredito && cuenta.limiteCredito != null ? cuenta.limiteCredito - cuenta.saldoActual : null;
-  const pctUso = esCredito && cuenta.limiteCredito ? Math.min(100, (cuenta.saldoActual / cuenta.limiteCredito) * 100) : 0;
+  const saldoNeg = esCredito && cuenta.saldoActual < 0;
+  const deuda = saldoNeg ? 0 : cuenta.saldoActual;
+  const aFavor = saldoNeg ? -cuenta.saldoActual : 0;
+  const disponible =
+    esCredito && cuenta.limiteCredito != null ? (saldoNeg ? aFavor : cuenta.limiteCredito - cuenta.saldoActual) : aFavor || null;
+  const pctUso = esCredito && cuenta.limiteCredito ? Math.min(100, (deuda / cuenta.limiteCredito) * 100) : 0;
 
   return (
     <div className="glass glow-hover group relative overflow-hidden rounded-2xl border border-border p-5">
@@ -64,11 +68,16 @@ export function AccountCard({
         <p
           className={cn(
             "font-mono text-2xl font-bold tracking-tight",
-            esCredito && cuenta.saldoActual > 0 && "text-destructive"
+            esCredito && deuda > 0 && "text-destructive"
           )}
         >
-          {formatCurrency(cuenta.saldoActual)}
+          {formatCurrency(deuda)}
         </p>
+        {saldoNeg && (
+          <p className="text-xs text-muted-foreground">
+            Disponible: {formatCurrency(aFavor)} · cargá el límite para ver tu deuda real (límite − disponible)
+          </p>
+        )}
       </div>
 
       {esCredito && cuenta.limiteCredito != null && (

@@ -41,6 +41,7 @@ npm run start
 | `npm run db:generate` | Genera migraciones desde el esquema Drizzle |
 | `npm run db:migrate` | Aplica migraciones |
 | `npm run db:seed` | Carga datos de ejemplo (no hace nada si ya hay datos) |
+| `npm run db:seed:excel` | Importa el backup `.xlsx` de la raíz del proyecto (usa `--force` para reemplazar datos existentes) |
 | `npm run db:setup` | Migrar + seed |
 
 La base de datos vive en `data/finanzas.db` (se crea sola al arrancar). Está en `.gitignore`.
@@ -85,5 +86,6 @@ src/
 ## Notas
 
 - El login con PIN protege la interfaz; para una app local/personal es suficiente (la API no exige token).
-- Moneda y formato de montos: es-AR / ARS, editable en `src/lib/format.ts`.
+- Moneda y formato de montos: es-MX / MXN, editable en `src/lib/format.ts`.
+- Desde el celular se puede instalar como web app (menú del navegador → "Agregar a pantalla de inicio"): la app ya incluye manifest, íconos y navegación inferior táctil.
 - Deploy en Vercel: la base es un archivo local, así que en Vercel el almacenamiento es efímero (se reseeda en cada instancia). El uso previsto es **local** (`npm run dev` / `npm start`).

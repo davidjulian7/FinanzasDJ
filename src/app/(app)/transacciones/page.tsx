@@ -113,7 +113,7 @@ export default function TransactionsPage() {
         t.categoria ? `"${t.categoria.replace(/"/g, '""')}"` : "",
         `"${t.cuenta.replace(/"/g, '""')}"`,
         t.cuentaDestino ? `"${t.cuentaDestino.replace(/"/g, '""')}"` : "",
-        t.monto.toLocaleString("es-AR", { minimumFractionDigits: 2 }),
+        t.monto.toLocaleString("es-MX", { minimumFractionDigits: 2 }),
         t.notas ? `"${t.notas.replace(/"/g, '""')}"` : "",
       ].join(";")
     );

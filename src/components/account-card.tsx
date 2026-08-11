@@ -44,7 +44,7 @@ export function AccountCard({
           </div>
         </div>
         {(onEdit || onDelete) && (
-          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
             {onEdit && (
               <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(cuenta)}>
                 <Pencil className="size-3.5" />

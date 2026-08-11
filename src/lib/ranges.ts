@@ -1,6 +1,6 @@
 import { isoDate } from "./format";
 
-export type RangePreset = "hoy" | "7d" | "mes" | "3m" | "anio" | "todo" | "custom";
+export type RangePreset = "hoy" | "7d" | "2s" | "mes" | "3m" | "anio" | "todo" | "custom";
 
 export interface DateRange {
   from: string;
@@ -10,6 +10,7 @@ export interface DateRange {
 export const RANGE_PRESETS: Array<{ id: RangePreset; label: string }> = [
   { id: "hoy", label: "Hoy" },
   { id: "7d", label: "Últimos 7 días" },
+  { id: "2s", label: "Quincena" },
   { id: "mes", label: "Este mes" },
   { id: "3m", label: "Últimos 3 meses" },
   { id: "anio", label: "Este año" },
@@ -25,6 +26,8 @@ export function computeRange(preset: RangePreset, from?: string, to?: string, to
       return { from: isoDate(t), to: isoDate(t) };
     case "7d":
       return { from: isoDate(new Date(t.getTime() - 6 * DAY)), to: isoDate(t) };
+    case "2s":
+      return { from: isoDate(new Date(t.getTime() - 13 * DAY)), to: isoDate(t) };
     case "mes":
       return { from: isoDate(new Date(t.getFullYear(), t.getMonth(), 1)), to: isoDate(t) };
     case "3m":

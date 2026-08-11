@@ -151,9 +151,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-6 md:ml-64 md:px-8 md:pb-10">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 pb-28 pt-6 md:ml-64 md:px-8 md:pb-10">
+        {children}
+      </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-background/90 px-2 py-2 backdrop-blur-xl md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-background/90 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur-xl md:hidden">
         {NAV.map((item) => {
           const active = pathname.startsWith(item.href);
           return (

@@ -43,6 +43,9 @@ yarn-error.log*
 *.db-wal
 *.db-shm
 
+# backups de la app de finanzas (Excel)
+/*.xlsx
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

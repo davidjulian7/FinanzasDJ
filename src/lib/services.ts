@@ -26,6 +26,11 @@ function deltaOrigen(acct: { tipo: string }, tipo: TxTipo): number {
   return -1;
 }
 
+// Transferencia hacia una cuenta de crédito = pago de tarjeta: reduce la deuda.
+function deltaDestino(acct: { tipo: string }): number {
+  return credito(acct) ? -1 : 1;
+}
+
 function validar(input: TxInput) {
   if (!input.descripcion?.trim()) throw new Error("La descripción es obligatoria");
   if (!Number.isFinite(input.monto) || input.monto <= 0) throw new Error("El monto debe ser mayor a cero");
@@ -52,7 +57,7 @@ export function crearTransaccion(input: TxInput) {
       .run();
     if (destino) {
       tx.update(accounts)
-        .set({ saldoActual: destino.saldoActual + input.monto })
+        .set({ saldoActual: destino.saldoActual + input.monto * deltaDestino(destino) })
         .where(eq(accounts.id, destino.id))
         .run();
     }
@@ -91,7 +96,7 @@ export function actualizarTransaccion(id: number, input: TxInput) {
       .run();
     if (destino) {
       tx.update(accounts)
-        .set({ saldoActual: destino.saldoActual + input.monto })
+        .set({ saldoActual: destino.saldoActual + input.monto * deltaDestino(destino) })
         .where(eq(accounts.id, destino.id))
         .run();
     }
@@ -135,7 +140,7 @@ function revertir(tx: DbSession, t: TxLike) {
     const destino = tx.select().from(accounts).where(eq(accounts.id, t.accountDestinoId)).get();
     if (destino) {
       tx.update(accounts)
-        .set({ saldoActual: destino.saldoActual - t.monto })
+        .set({ saldoActual: destino.saldoActual - t.monto * deltaDestino(destino) })
         .where(eq(accounts.id, destino.id))
         .run();
     }

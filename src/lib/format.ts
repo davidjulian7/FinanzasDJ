@@ -1,13 +1,13 @@
 export function formatCurrency(n: number, compact = false): string {
   const opts: Intl.NumberFormatOptions = {
     style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
+    currency: "MXN",
+    maximumFractionDigits: 2,
   };
   if (compact) {
-    return new Intl.NumberFormat("es-AR", { ...opts, notation: "compact", maximumFractionDigits: 1 }).format(n);
+    return new Intl.NumberFormat("es-MX", { ...opts, notation: "compact", maximumFractionDigits: 1 }).format(n);
   }
-  return new Intl.NumberFormat("es-AR", opts).format(n);
+  return new Intl.NumberFormat("es-MX", opts).format(n);
 }
 
 export function formatCompact(n: number): string {

@@ -130,7 +130,7 @@ export function seedDatabase() {
           : -tx.monto;
     balances[tx.account] = balances[tx.account] + delta;
     if (tx.destino) {
-      balances[tx.destino] = balances[tx.destino] + tx.monto;
+      balances[tx.destino] = balances[tx.destino] + tx.monto * (["Visa", "Mastercard"].includes(tx.destino) ? -1 : 1);
     }
   }
 

@@ -1,16 +1,12 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 import { accounts, budgets, categories, transactions } from "./db/schema";
-import { daysBetween, type DateRange } from "./ranges";
+import { daysBetween, quincenaDelDia, quincenaRango, type DateRange } from "./ranges";
+import { getIngresoQuincena, getReglaPct } from "./settings";
 
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 type Grupo = "necesidades" | "deseos" | "ahorro";
-
-function hoyISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export function getDashboard(range: DateRange) {
   const cuentas = db.select().from(accounts).all();
@@ -91,7 +87,13 @@ export function getDashboard(range: DateRange) {
   const hoy = new Date();
   const mes = hoy.getMonth() + 1;
   const anio = hoy.getFullYear();
-  const budgetRows = db.select().from(budgets).where(and(eq(budgets.mes, mes), eq(budgets.anio, anio))).all();
+  const quincena = quincenaDelDia(hoy.getDate());
+  const rangoQuincena = quincenaRango(anio, mes, quincena);
+  const budgetRows = db
+    .select()
+    .from(budgets)
+    .where(and(eq(budgets.mes, mes), eq(budgets.anio, anio), eq(budgets.quincena, quincena)))
+    .all();
   const budgetMes = new Map(budgetRows.map((b) => [b.categoriaId, b.montoPresupuestado]));
   const grupoPorCat = new Map(cats.filter((c) => c.grupoPresupuesto).map((c) => [c.id, c.grupoPresupuesto!]));
 
@@ -100,22 +102,24 @@ export function getDashboard(range: DateRange) {
     deseos: { presupuestado: 0, gastado: 0 },
     ahorro: { presupuestado: 0, gastado: 0 },
   };
-  const inicioMes = `${anio}-${String(mes).padStart(2, "0")}-01`;
   const txsMes = db
     .select()
     .from(transactions)
-    .where(and(gte(transactions.fecha, inicioMes), lte(transactions.fecha, hoyISO())))
+    .where(and(gte(transactions.fecha, rangoQuincena.from), lte(transactions.fecha, rangoQuincena.to)))
     .all();
   for (const [catId, monto] of budgetMes) {
     const grupo = grupoPorCat.get(catId);
-    if (grupo && presupuesto[grupo]) presupuesto[grupo].presupuestado += monto;
+    if (grupo === "necesidades" && presupuesto[grupo]) presupuesto[grupo].presupuestado += monto;
   }
   for (const t of txsMes) {
     if (t.tipo !== "gasto" || !t.categoryId) continue;
     const grupo = grupoPorCat.get(t.categoryId);
     if (grupo && presupuesto[grupo]) presupuesto[grupo].gastado += t.monto;
   }
-  const ingresosMes = txsMes.filter((t) => t.tipo === "ingreso").reduce((s, t) => s + t.monto, 0);
+  const ingresosMes = getIngresoQuincena(anio, mes, quincena);
+  const regla = getReglaPct();
+  presupuesto.deseos.presupuestado = Math.round((ingresosMes * regla.deseos) / 100);
+  presupuesto.ahorro.presupuestado = Math.round((ingresosMes * regla.ahorro) / 100);
 
   const recientes = db
     .select()

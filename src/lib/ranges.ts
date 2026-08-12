@@ -26,8 +26,10 @@ export function computeRange(preset: RangePreset, from?: string, to?: string, to
       return { from: isoDate(t), to: isoDate(t) };
     case "7d":
       return { from: isoDate(new Date(t.getTime() - 6 * DAY)), to: isoDate(t) };
-    case "2s":
-      return { from: isoDate(new Date(t.getTime() - 13 * DAY)), to: isoDate(t) };
+    case "2s": {
+      const inicio = t.getDate() <= 15 ? 1 : 16;
+      return { from: isoDate(new Date(t.getFullYear(), t.getMonth(), inicio)), to: isoDate(t) };
+    }
     case "mes":
       return { from: isoDate(new Date(t.getFullYear(), t.getMonth(), 1)), to: isoDate(t) };
     case "3m":
@@ -52,4 +54,16 @@ export function daysBetween(from: string, to: string): number {
   const a = new Date(fy, fm - 1, fd).getTime();
   const b = new Date(ty, tm - 1, td).getTime();
   return Math.round((b - a) / DAY) + 1;
+}
+
+export function quincenaDelDia(day: number): 1 | 2 {
+  return day <= 15 ? 1 : 2;
+}
+
+export function quincenaRango(anio: number, mes: number, quincena: number): DateRange {
+  const ultimoDia = new Date(anio, mes, 0).getDate();
+  const desde = quincena === 1 ? 1 : 16;
+  const hasta = quincena === 1 ? 15 : ultimoDia;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { from: `${anio}-${pad(mes)}-${pad(desde)}`, to: `${anio}-${pad(mes)}-${pad(hasta)}` };
 }

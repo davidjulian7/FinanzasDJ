@@ -20,6 +20,8 @@ import {
   Gift,
   HandCoins,
   Tag,
+  Phone,
+  Dumbbell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +45,8 @@ const ICONS: Record<string, LucideIcon> = {
   Gift,
   HandCoins,
   Tag,
+  Phone,
+  Dumbbell,
 };
 
 export function IconByName({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) {

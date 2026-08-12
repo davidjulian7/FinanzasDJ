@@ -87,13 +87,28 @@ export interface BudgetItem {
   icono: string;
   color: string;
   grupo: "necesidades" | "deseos" | "ahorro" | null;
+  parentId: number | null;
   presupuestado: number;
   gastado: number;
+}
+
+export interface ReglaPct {
+  necesidades: number;
+  deseos: number;
+  ahorro: number;
+}
+
+export interface AhorroSplit {
+  habilitado: boolean;
+  telefonoPct: number;
 }
 
 export interface BudgetData {
   mes: number;
   anio: number;
-  ingresosMes: number;
+  quincena: number;
+  ingresosQuincena: number;
+  regla: ReglaPct;
+  ahorroSplit: AhorroSplit;
   items: BudgetItem[];
 }

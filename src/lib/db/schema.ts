@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 export const accounts = sqliteTable("accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -22,6 +22,7 @@ export const categories = sqliteTable("categories", {
   grupoPresupuesto: text("grupo_presupuesto", {
     enum: ["necesidades", "deseos", "ahorro"],
   }),
+  parentId: integer("parent_id").references((): AnySQLiteColumn => categories.id),
 });
 
 export const transactions = sqliteTable(
@@ -48,12 +49,13 @@ export const budgets = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     mes: integer("mes").notNull(),
     anio: integer("anio").notNull(),
+    quincena: integer("quincena").notNull().default(1),
     categoriaId: integer("categoria_id")
       .notNull()
       .references(() => categories.id),
     montoPresupuestado: real("monto_presupuestado").notNull().default(0),
   },
-  (t) => [uniqueIndex("idx_budgets_mes_anio_cat").on(t.mes, t.anio, t.categoriaId)]
+  (t) => [uniqueIndex("idx_budgets_mes_anio_q_cat").on(t.mes, t.anio, t.quincena, t.categoriaId)]
 );
 
 export const debts = sqliteTable("debts", {

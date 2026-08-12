@@ -15,6 +15,20 @@
       "when": 1786478550226,
       "tag": "0001_little_ben_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786487379674,
+      "tag": "0002_glossy_darwin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786489648877,
+      "tag": "0003_married_demogoblin",
+      "breakpoints": true
     }
   ]
 }

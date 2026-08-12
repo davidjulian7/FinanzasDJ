@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const rows = db.select().from(accounts).orderBy(accounts.id).all();
-  return NextResponse.json(rows);
+  return NextResponse.json(rows, {
+    headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
+  });
 }
 
 export async function POST(req: NextRequest) {

@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Download, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useRangeDates } from "@/stores/range";
+import { useReference } from "@/stores/reference";
 import { api } from "@/lib/api";
-import type { AccountRow, CategoryRow, TxRow, TxTipo } from "@/lib/types";
+import type { TxRow, TxTipo } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { TransactionRow } from "@/components/transaction-row";
@@ -39,13 +40,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TransactionsPage() {
   const range = useRangeDates();
+  const { accounts: cuentas, expenseCategories: categorias } = useReference();
   const [rows, setRows] = useState<TxRow[] | null>(null);
-  const [cuentas, setCuentas] = useState<AccountRow[]>([]);
-  const [categorias, setCategorias] = useState<CategoryRow[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [accountId, setAccountId] = useState("");
-  const [categoriaId, setCategoriaId] = useState("");
-  const [tipo, setTipo] = useState("");
+  const [accountId, setAccountId] = useState("all");
+  const [categoriaId, setCategoriaId] = useState("all");
+  const [tipo, setTipo] = useState("all");
   const [busqueda, setBusqueda] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -54,25 +55,21 @@ export default function TransactionsPage() {
   const [refresh, setRefresh] = useState(0);
 
   const cargar = useCallback(async () => {
-    setRows(null);
+    setRefreshing(true);
     const params = new URLSearchParams();
     params.set("from", range.from);
     params.set("to", range.to);
-    if (accountId) params.set("account", accountId);
-    if (categoriaId) params.set("categoria", categoriaId);
-    if (tipo) params.set("tipo", tipo);
+    if (accountId && accountId !== "all") params.set("account", accountId);
+    if (categoriaId && categoriaId !== "all") params.set("categoria", categoriaId);
+    if (tipo && tipo !== "all") params.set("tipo", tipo);
     try {
-      const [txs, accs, cats] = await Promise.all([
-        api.get<TxRow[]>(`/api/transactions?${params.toString()}`),
-        api.get<AccountRow[]>("/api/accounts"),
-        api.get<CategoryRow[]>("/api/categories"),
-      ]);
+      const txs = await api.get<TxRow[]>(`/api/transactions?${params.toString()}`);
       setRows(txs);
-      setCuentas(accs);
-      setCategorias(cats);
     } catch {
       toast.error("No se pudieron cargar las transacciones");
-      setRows([]);
+      setRows((prev) => prev ?? []);
+    } finally {
+      setRefreshing(false);
     }
   }, [range.from, range.to, accountId, categoriaId, tipo]);
 
@@ -89,14 +86,28 @@ export default function TransactionsPage() {
 
   async function eliminar() {
     if (!eliminando) return;
+    const prev = rows;
+    setRows((r) => (r ? r.filter((t) => t.id !== eliminando.id) : r));
+    setEliminando(null);
     try {
       await api.delete(`/api/transactions/${eliminando.id}`);
       toast.success("Movimiento eliminado");
-      setEliminando(null);
       setRefresh((r) => r + 1);
     } catch (e) {
+      setRows(prev);
       toast.error(e instanceof Error ? e.message : "No se pudo eliminar");
     }
+  }
+
+  function onSaved(row?: TxRow) {
+    if (row) {
+      setRows((prev) => {
+        if (!prev) return prev;
+        const existe = prev.some((t) => t.id === row.id);
+        return existe ? prev.map((t) => (t.id === row.id ? row : t)) : [row, ...prev];
+      });
+    }
+    setRefresh((r) => r + 1);
   }
 
   function exportarCSV() {
@@ -131,7 +142,12 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <DateRangePicker />
+        <div className="flex items-center gap-2">
+          <DateRangePicker />
+          {refreshing && rows !== null && (
+            <span className="text-xs text-muted-foreground">Actualizando…</span>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -253,7 +269,7 @@ export default function TransactionsPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         tx={editando}
-        onSaved={() => setRefresh((r) => r + 1)}
+        onSaved={onSaved}
       />
 
       <Dialog open={!!eliminando} onOpenChange={(v) => !v && setEliminando(null)}>

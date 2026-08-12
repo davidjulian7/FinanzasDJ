@@ -23,7 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
-import type { AccountRow, AccountTipo, CategoryRow, CuotaRow } from "@/lib/types";
+import { useReference, useReferenceStore } from "@/stores/reference";
+import type { AccountRow, AccountTipo, ExpenseCategoryRow, CuotaRow } from "@/lib/types";
 import { formatCurrency, todayISO } from "@/lib/format";
 import { IconByName } from "@/components/icon-registry";
 import { cn } from "@/lib/utils";
@@ -90,8 +91,9 @@ export function AccountModal({
   const [icono, setIcono] = useState("Wallet");
   const [loading, setLoading] = useState(false);
 
-  const [categorias, setCategorias] = useState<CategoryRow[]>([]);
+  const [categorias, setCategorias] = useState<ExpenseCategoryRow[]>([]);
   const [cuentas, setCuentas] = useState<AccountRow[]>([]);
+  const { accounts: refAccounts, expenseCategories: refCategories } = useReference();
   const [movTipo, setMovTipo] = useState<"gasto" | "ingreso">("gasto");
   const [movMonto, setMovMonto] = useState("");
   const [movCategoria, setMovCategoria] = useState("");
@@ -140,12 +142,6 @@ export function AccountModal({
     setCatIcono("Tag");
     setPagoOrigen("");
     setPagoMonto("");
-    Promise.all([api.get<CategoryRow[]>("/api/categories"), api.get<AccountRow[]>("/api/accounts")])
-      .then(([cats, accs]) => {
-        setCategorias(cats);
-        setCuentas(accs);
-      })
-      .catch(() => toast.error("No se pudieron cargar categorías y cuentas"));
     if (cuenta?.tipo === "credito") {
       api
         .get<CuotaRow[]>(`/api/cuotas?account=${cuenta.id}`)
@@ -161,6 +157,11 @@ export function AccountModal({
     setMesesCategoria("");
     setMesesFecha(todayISO());
   }, [open, cuenta]);
+
+  useEffect(() => {
+    setCategorias(refCategories);
+    setCuentas(refAccounts);
+  }, [refCategories, refAccounts]);
 
   const categoriasFiltradas = useMemo(
     () => categorias.filter((c) => c.tipo === (movTipo === "ingreso" ? "ingreso" : "gasto")),
@@ -232,7 +233,7 @@ export function AccountModal({
     if (!catNombre.trim()) return toast.error("Escribí el nombre de la categoría");
     setCreandoCat(true);
     try {
-      const res = await api.post<{ id: number }>("/api/categories", {
+      const res = await api.post<{ id: number }>("/api/expense-categories", {
         nombre: catNombre.trim(),
         tipo: movTipo,
         color: catColor,
@@ -240,7 +241,11 @@ export function AccountModal({
       });
       setCategorias((prev) => [
         ...prev,
-        { id: res.id, nombre: catNombre.trim(), tipo: movTipo, icono: catIcono, color: catColor, grupoPresupuesto: null },
+        { id: res.id, nombre: catNombre.trim(), tipo: movTipo, icono: catIcono, color: catColor, budgetSubcategoryId: null, activo: true },
+      ]);
+      useReferenceStore.getState().replaceExpenseCategories([
+        ...(useReferenceStore.getState().expenseCategories ?? []),
+        { id: res.id, nombre: catNombre.trim(), tipo: movTipo, icono: catIcono, color: catColor, budgetSubcategoryId: null, activo: true },
       ]);
       setMovCategoria(String(res.id));
       setNuevaCat(false);
@@ -958,7 +963,7 @@ function MovimientoForm({
   setFecha: (v: string) => void;
   descripcion: string;
   setDescripcion: (v: string) => void;
-  categorias: CategoryRow[];
+  categorias: ExpenseCategoryRow[];
   nuevaCat: boolean;
   setNuevaCat: (v: boolean) => void;
   catNombre: string;

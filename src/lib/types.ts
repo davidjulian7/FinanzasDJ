@@ -32,13 +32,46 @@ export interface AccountRow {
   icono: string;
 }
 
-export interface CategoryRow {
+export interface BudgetGroupRow {
   id: number;
+  key: "necesidades" | "deseos" | "ahorro";
+  label: string;
+  color: string;
+  icono: string;
+  orden: number;
+}
+
+export interface BudgetSubcategoryRow {
+  id: number;
+  budgetGroupId: number;
   nombre: string;
-  tipo: "gasto" | "ingreso";
   icono: string;
   color: string;
-  grupoPresupuesto: "necesidades" | "deseos" | "ahorro" | null;
+  orden: number;
+  activo: boolean;
+}
+
+export interface ExpenseCategoryRow {
+  id: number;
+  nombre: string;
+  icono: string;
+  color: string;
+  tipo: "gasto" | "ingreso";
+  budgetSubcategoryId: number | null;
+  activo: boolean;
+}
+
+export interface RecurringExpenseRow {
+  id: number;
+  nombre: string;
+  monto: number;
+  frecuencia: "semanal" | "quincenal" | "mensual" | "anual";
+  proximoCobro: string;
+  expenseCategoryId: number;
+  accountId: number;
+  budgetGroupId: number;
+  nota: string | null;
+  activo: boolean;
 }
 
 export interface DashboardData {
@@ -81,15 +114,16 @@ export interface CuotaRow {
   cuenta: string;
 }
 
-export interface BudgetItem {
-  categoriaId: number;
-  nombre: string;
-  icono: string;
-  color: string;
-  grupo: "necesidades" | "deseos" | "ahorro" | null;
-  parentId: number | null;
-  presupuestado: number;
-  gastado: number;
+export interface BudgetSubcategoryWithDetails extends BudgetSubcategoryRow {
+  budgetGroup?: BudgetGroupRow;
+  expenseCategories?: ExpenseCategoryRow[];
+  recurrents?: RecurringExpenseRow[];
+  presupuestado?: number;
+  gastado?: number;
+}
+
+export interface BudgetGroupWithSubcategories extends BudgetGroupRow {
+  subcategories: BudgetSubcategoryWithDetails[];
 }
 
 export interface ReglaPct {
@@ -98,17 +132,31 @@ export interface ReglaPct {
   ahorro: number;
 }
 
-export interface AhorroSplit {
-  habilitado: boolean;
-  telefonoPct: number;
-}
-
-export interface BudgetData {
+export interface BudgetConfigData {
   mes: number;
   anio: number;
   quincena: number;
   ingresosQuincena: number;
   regla: ReglaPct;
-  ahorroSplit: AhorroSplit;
-  items: BudgetItem[];
+  groups: BudgetGroupWithSubcategories[];
+}
+
+export interface BudgetExecutionData {
+  mes: number;
+  anio: number;
+  quincena: number;
+  ingresosQuincena: number;
+  regla: ReglaPct;
+  groups: Array<{
+    group: BudgetGroupRow;
+    subcategories: Array<BudgetSubcategoryWithDetails & {
+      expenseCategories?: ExpenseCategoryRow[];
+      recurrents?: RecurringExpenseRow[];
+      progreso?: number;
+      disponible?: number;
+    }>;
+    totalPresupuestado: number;
+    totalGastado: number;
+    progreso: number;
+  }>;
 }

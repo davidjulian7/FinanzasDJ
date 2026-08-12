@@ -25,20 +25,10 @@ export interface ReglaPct {
   ahorro: number;
 }
 
-export interface AhorroSplit {
-  habilitado: boolean;
-  telefonoPct: number;
-}
-
 export const REGLA_DEFAULT: ReglaPct = { necesidades: 50, deseos: 30, ahorro: 20 };
-export const AHORRO_SPLIT_DEFAULT: AhorroSplit = { habilitado: true, telefonoPct: 50 };
 
 export function getReglaPct(): ReglaPct {
   return { ...REGLA_DEFAULT, ...getSetting<Partial<ReglaPct>>("regla_pct", {}) };
-}
-
-export function getAhorroSplit(): AhorroSplit {
-  return { ...AHORRO_SPLIT_DEFAULT, ...getSetting<Partial<AhorroSplit>>("ahorro_split", {}) };
 }
 
 export function ingresoKey(anio: number, mes: number, quincena: number): string {

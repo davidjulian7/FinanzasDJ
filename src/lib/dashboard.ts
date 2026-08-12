@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "./db";
-import { accounts, budgets, categories, transactions } from "./db/schema";
+import { accounts, budgets, budgetGroups, budgetSubcategories, expenseCategories, transactions } from "./db/schema";
 import { daysBetween, quincenaDelDia, quincenaRango, type DateRange } from "./ranges";
 import { getIngresoQuincena, getReglaPct } from "./settings";
 
@@ -10,9 +10,24 @@ type Grupo = "necesidades" | "deseos" | "ahorro";
 
 export function getDashboard(range: DateRange) {
   const cuentas = db.select().from(accounts).all();
-  const cats = db.select().from(categories).all();
+  const cats = db.select().from(expenseCategories).all();
   const catById = new Map(cats.map((c) => [c.id, c]));
   const cuentaById = new Map(cuentas.map((c) => [c.id, c]));
+  const subcats = db.select().from(budgetSubcategories).all();
+  const subcatById = new Map(subcats.map((s) => [s.id, s]));
+  const groups = db.select().from(budgetGroups).all();
+  const groupById = new Map(groups.map((g) => [g.id, g]));
+  const grupoDeSubcat = (subcatId: number | null): string | null => {
+    if (!subcatId) return null;
+    const s = subcatById.get(subcatId);
+    if (!s) return null;
+    return groupById.get(s.budgetGroupId)?.key ?? null;
+  };
+  const grupoDeCat = (catId: number | null): string | null => {
+    if (!catId) return null;
+    const c = catById.get(catId);
+    return grupoDeSubcat(c?.budgetSubcategoryId ?? null);
+  };
 
   const txs = db
     .select()
@@ -94,8 +109,7 @@ export function getDashboard(range: DateRange) {
     .from(budgets)
     .where(and(eq(budgets.mes, mes), eq(budgets.anio, anio), eq(budgets.quincena, quincena)))
     .all();
-  const budgetMes = new Map(budgetRows.map((b) => [b.categoriaId, b.montoPresupuestado]));
-  const grupoPorCat = new Map(cats.filter((c) => c.grupoPresupuesto).map((c) => [c.id, c.grupoPresupuesto!]));
+  const budgetMes = new Map(budgetRows.map((b) => [b.budgetSubcategoryId, b.montoPresupuestado]));
 
   const presupuesto: Record<Grupo, { presupuestado: number; gastado: number }> = {
     necesidades: { presupuestado: 0, gastado: 0 },
@@ -107,14 +121,14 @@ export function getDashboard(range: DateRange) {
     .from(transactions)
     .where(and(gte(transactions.fecha, rangoQuincena.from), lte(transactions.fecha, rangoQuincena.to)))
     .all();
-  for (const [catId, monto] of budgetMes) {
-    const grupo = grupoPorCat.get(catId);
-    if (grupo === "necesidades" && presupuesto[grupo]) presupuesto[grupo].presupuestado += monto;
+  for (const [subcatId, monto] of budgetMes) {
+    const grupo = grupoDeSubcat(subcatId);
+    if (grupo && presupuesto[grupo as Grupo]) presupuesto[grupo as Grupo].presupuestado += monto;
   }
   for (const t of txsMes) {
     if (t.tipo !== "gasto" || !t.categoryId) continue;
-    const grupo = grupoPorCat.get(t.categoryId);
-    if (grupo && presupuesto[grupo]) presupuesto[grupo].gastado += t.monto;
+    const grupo = grupoDeCat(t.categoryId);
+    if (grupo && presupuesto[grupo as Grupo]) presupuesto[grupo as Grupo].gastado += t.monto;
   }
   const ingresosMes = getIngresoQuincena(anio, mes, quincena);
   const regla = getReglaPct();

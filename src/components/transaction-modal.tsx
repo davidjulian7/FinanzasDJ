@@ -22,8 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useReference } from "@/stores/reference";
 import { api } from "@/lib/api";
-import type { AccountRow, CategoryRow, TxRow, TxTipo } from "@/lib/types";
+import type { TxRow, TxTipo } from "@/lib/types";
 import { todayISO } from "@/lib/format";
 
 export function TransactionModal({
@@ -35,10 +36,9 @@ export function TransactionModal({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   tx?: TxRow | null;
-  onSaved?: () => void;
+  onSaved?: (row?: TxRow) => void;
 }) {
-  const [cuentas, setCuentas] = useState<AccountRow[]>([]);
-  const [categorias, setCategorias] = useState<CategoryRow[]>([]);
+  const { accounts: cuentas, expenseCategories: categorias } = useReference();
   const [loading, setLoading] = useState(false);
 
   const [descripcion, setDescripcion] = useState("");
@@ -60,12 +60,6 @@ export function TransactionModal({
     setCategoryId(tx?.categoryId ? String(tx.categoryId) : "");
     setFecha(tx?.fecha ?? todayISO());
     setNotas(tx?.notas ?? "");
-    Promise.all([api.get<AccountRow[]>("/api/accounts"), api.get<CategoryRow[]>("/api/categories")])
-      .then(([c, cats]) => {
-        setCuentas(c);
-        setCategorias(cats);
-      })
-      .catch(() => toast.error("No se pudieron cargar cuentas y categorías"));
   }, [open, tx]);
 
   const categoriasFiltradas = useMemo(
@@ -95,15 +89,31 @@ export function TransactionModal({
 
     setLoading(true);
     try {
-      if (tx) {
-        await api.put(`/api/transactions/${tx.id}`, body);
-        toast.success("Transacción actualizada");
-      } else {
-        await api.post("/api/transactions", body);
-        toast.success("Movimiento registrado");
-      }
+      const res = tx
+        ? await api.put<{ id: number }>(`/api/transactions/${tx.id}`, body)
+        : await api.post<{ id: number }>("/api/transactions", body);
+      const id = res?.id ?? tx?.id ?? 0;
+      const cuentaNombre = cuentas.find((c) => c.id === Number(accountId))?.nombre ?? "—";
+      const cuentaDestino = tipo === "transferencia" ? (cuentas.find((c) => c.id === Number(accountDestinoId))?.nombre ?? "—") : null;
+      const cat = tipo === "transferencia" ? undefined : categorias.find((c) => c.id === Number(categoryId));
+      onSaved?.({
+        id,
+        descripcion,
+        monto: m,
+        tipo,
+        fecha,
+        notas: notas || null,
+        accountId: Number(accountId),
+        accountDestinoId: tipo === "transferencia" ? Number(accountDestinoId) : null,
+        categoryId: tipo === "transferencia" ? null : Number(categoryId),
+        cuenta: cuentaNombre,
+        cuentaDestino,
+        categoria: cat?.nombre ?? null,
+        icono: cat?.icono ?? null,
+        color: cat?.color ?? null,
+      });
+      toast.success(tx ? "Transacción actualizada" : "Movimiento registrado");
       onOpenChange(false);
-      onSaved?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar");
     } finally {

@@ -45,7 +45,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <DateRangePicker />
+        <div className="flex items-center gap-2">
+          <DateRangePicker />
+          {loading && data && <span className="text-xs text-muted-foreground">Actualizando…</span>}
+        </div>
         {data && !loading && (
           <div className="flex items-center gap-4 text-sm">
             <span className="font-mono text-positive">+{formatCurrency(data.totales.ingresos)}</span>
@@ -66,7 +69,7 @@ export default function DashboardPage() {
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="space-y-6"
         >
-          {loading || !data ? (
+          {!data ? (
             <LoadingSkeleton />
           ) : (
             <>
@@ -116,7 +119,7 @@ export default function DashboardPage() {
                 <div className="glass glow-hover rounded-2xl border border-border p-5 lg:col-span-1">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-sm font-semibold">Presupuesto 50/30/20</h3>
-                    <Link href="/presupuestos" className="text-xs text-primary hover:underline">
+                    <Link href="/presupuesto/configuracion" className="text-xs text-primary hover:underline">
                       Editar
                     </Link>
                   </div>

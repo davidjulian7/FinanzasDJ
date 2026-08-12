@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "./index";
-import { accounts, budgets, categories, debts, settings, transactions } from "./schema";
+import { accounts, budgets, budgetSubcategories, debts, expenseCategories, settings, transactions } from "./schema";
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -97,9 +97,9 @@ export function seedDatabase() {
   const catIds: Record<string, number> = {};
   for (const c of categoryDefs) {
     const row = db
-      .insert(categories)
-      .values({ nombre: c.nombre, tipo: c.tipo, icono: c.icono, color: c.color, grupoPresupuesto: c.grupo })
-      .returning({ id: categories.id, nombre: categories.nombre })
+      .insert(expenseCategories)
+      .values({ nombre: c.nombre, tipo: c.tipo, icono: c.icono, color: c.color, budgetSubcategoryId: null, activo: true })
+      .returning({ id: expenseCategories.id, nombre: expenseCategories.nombre })
       .all()[0];
     catIds[c.nombre] = row.id;
   }
@@ -250,10 +250,15 @@ export function seedDatabase() {
   const prev = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
   meses.push({ mes: prev.getMonth() + 1, anio: prev.getFullYear() });
 
+  const subcats = db.select().from(budgetSubcategories).all();
+  const subcatByNombre = new Map(subcats.map((s) => [s.nombre, s.id]));
+
   for (const { mes, anio } of meses) {
     for (const [nombre, monto] of Object.entries(budgetDefs)) {
+      const subcatId = subcatByNombre.get(nombre);
+      if (!subcatId) continue;
       db.insert(budgets)
-        .values({ mes, anio, categoriaId: catIds[nombre], montoPresupuestado: monto })
+        .values({ mes, anio, budgetSubcategoryId: subcatId, montoPresupuestado: monto })
         .onConflictDoNothing()
         .run();
     }

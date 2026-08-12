@@ -15,6 +15,7 @@ import {
   LogOut,
   KeyRound,
   Wallet,
+  CalendarClock,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,8 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transacciones", label: "Transacciones", icon: ArrowLeftRight },
   { href: "/cuentas", label: "Cuentas", icon: CreditCard },
-  { href: "/presupuestos", label: "Presupuestos", icon: PiggyBank },
+  { href: "/presupuesto", label: "Presupuesto", icon: PiggyBank },
+  { href: "/gastos-recurrentes", label: "Gastos recurrentes", icon: CalendarClock },
   { href: "/deudas", label: "Deudas", icon: HandCoins },
 ];
 
@@ -40,7 +42,10 @@ const TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/transacciones": "Transacciones",
   "/cuentas": "Cuentas",
-  "/presupuestos": "Presupuestos",
+  "/presupuesto": "Presupuesto",
+  "/presupuesto/configuracion": "Configurar presupuesto",
+  "/presupuesto/quincena": "Ejecución quincena",
+  "/gastos-recurrentes": "Gastos recurrentes",
   "/deudas": "Deudas",
 };
 

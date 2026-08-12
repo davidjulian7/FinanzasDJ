@@ -8,6 +8,7 @@ import type { AccountRow } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import { AccountCard } from "@/components/account-card";
 import { AccountModal } from "@/components/account-modal";
+import { useReferenceStore } from "@/stores/reference";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,7 @@ export default function AccountsPage() {
       toast.success("Cuenta eliminada");
       setEliminando(null);
       setRefresh((r) => r + 1);
+      useReferenceStore.getState().load(true).catch(() => {});
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo eliminar");
     }
@@ -112,7 +114,10 @@ export default function AccountsPage() {
           if (!v) setEditando(null);
         }}
         cuenta={editando}
-        onSaved={() => setRefresh((r) => r + 1)}
+        onSaved={() => {
+          setRefresh((r) => r + 1);
+          useReferenceStore.getState().load(true).catch(() => {});
+        }}
       />
 
       <Dialog open={!!eliminando} onOpenChange={(v) => !v && setEliminando(null)}>

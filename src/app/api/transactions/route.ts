@@ -2,7 +2,7 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, handleError } from "@/lib/api-server";
 import { db } from "@/lib/db";
-import { accounts, categories, transactions } from "@/lib/db/schema";
+import { accounts, expenseCategories, transactions } from "@/lib/db/schema";
 import { crearTransaccion, type TxInput } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const cuentas = db.select().from(accounts).all();
   const cuentaById = new Map(cuentas.map((c) => [c.id, c]));
-  const cats = db.select().from(categories).all();
+  const cats = db.select().from(expenseCategories).all();
   const catById = new Map(cats.map((c) => [c.id, c]));
 
   return NextResponse.json(

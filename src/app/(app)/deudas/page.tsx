@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CircleDollarSign, HandCoins, Pencil, Plus, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { AccountRow, DebtRow } from "@/lib/types";
+import { useReference } from "@/stores/reference";
+import type { DebtRow } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import {
   Dialog,
@@ -308,16 +309,15 @@ function DebtForm({
 }
 
 function PaymentDialog({ debt, onClose, onDone }: { debt: DebtRow | null; onClose: () => void; onDone: () => void }) {
+  const { accounts } = useReference();
   const [monto, setMonto] = useState("");
   const [cuentaId, setCuentaId] = useState("");
-  const [cuentas, setCuentas] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!debt) return;
     setMonto("");
     setCuentaId("");
-    api.get<AccountRow[]>("/api/accounts").then(setCuentas).catch(() => setCuentas([]));
   }, [debt]);
 
   async function registrar(e: React.FormEvent) {
@@ -363,7 +363,7 @@ function PaymentDialog({ debt, onClose, onDone }: { debt: DebtRow | null; onClos
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sin cuenta</SelectItem>
-                {cuentas.map((c) => (
+                {accounts.map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
                     {c.nombre}
                   </SelectItem>

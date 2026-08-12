@@ -15,6 +15,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       accountId: Number(body.accountId),
       accountDestinoId: body.accountDestinoId ? Number(body.accountDestinoId) : null,
       categoryId: body.categoryId ? Number(body.categoryId) : null,
+      budgetSubcategoryId: body.budgetSubcategoryId ? Number(body.budgetSubcategoryId) : null,
       fecha: body.fecha ?? "",
       notas: body.notas ?? null,
     });

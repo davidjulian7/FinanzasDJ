@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,14 @@ export function BudgetRuleEditor({ initialRule, ingresosQuincena, onChange, onSa
     deseos: initialRule.deseos,
     ahorro: initialRule.ahorro,
   });
+  const [display, setDisplay] = useState<Record<Grupo, string>>({
+    necesidades: String(initialRule.necesidades),
+    deseos: String(initialRule.deseos),
+    ahorro: String(initialRule.ahorro),
+  });
   const [errors, setErrors] = useState<Partial<Record<Grupo, string>>>({});
   const [pendingAdjustment, setPendingAdjustment] = useState<{ from: Grupo; to: Grupo[]; amount: number } | null>(null);
+  const isUserChange = useRef(false);
 
   const suma = useMemo(() => rule.necesidades + rule.deseos + rule.ahorro, [rule]);
   const isValid = suma === 100;
@@ -37,16 +43,30 @@ export function BudgetRuleEditor({ initialRule, ingresosQuincena, onChange, onSa
   const isUnder = suma < 100 && suma > 0;
 
   useEffect(() => {
-    onChange(rule);
+    if (isUserChange.current) {
+      isUserChange.current = false;
+      onChange(rule);
+    }
   }, [rule, onChange]);
 
-  const handleChange = useCallback((grupo: Grupo, value: string) => {
-    const num = Math.max(0, Math.min(100, parseInt(value) || 0));
+  useEffect(() => {
+    setRule(initialRule);
+    setDisplay({
+      necesidades: String(initialRule.necesidades),
+      deseos: String(initialRule.deseos),
+      ahorro: String(initialRule.ahorro),
+    });
+  }, [initialRule]);
+
+  const syncToRule = useCallback((grupo: Grupo, raw: string) => {
+    const num = Math.max(0, Math.min(100, parseInt(raw) || 0));
+    setDisplay((prev) => ({ ...prev, [grupo]: String(num) }));
+
     const oldValue = rule[grupo];
     const diff = num - oldValue;
-
     if (diff === 0) return;
 
+    isUserChange.current = true;
     const newRule = { ...rule, [grupo]: num };
     const newSuma = newRule.necesidades + newRule.deseos + newRule.ahorro;
 
@@ -76,6 +96,7 @@ export function BudgetRuleEditor({ initialRule, ingresosQuincena, onChange, onSa
         finalRule[a.grupo] = a.newValue;
       }
       setRule(finalRule);
+      setDisplay({ necesidades: String(finalRule.necesidades), deseos: String(finalRule.deseos), ahorro: String(finalRule.ahorro) });
       setPendingAdjustment(null);
     } else {
       setRule(newRule);
@@ -92,7 +113,9 @@ export function BudgetRuleEditor({ initialRule, ingresosQuincena, onChange, onSa
       const reduction = toSum > 0 ? Math.round((newRule[g] / toSum) * amount) : Math.round(amount / to.length);
       newRule[g] = Math.max(0, newRule[g] - reduction);
     }
+    isUserChange.current = true;
     setRule(newRule);
+    setDisplay({ necesidades: String(newRule.necesidades), deseos: String(newRule.deseos), ahorro: String(newRule.ahorro) });
     setPendingAdjustment(null);
   }, [pendingAdjustment, rule]);
 
@@ -129,18 +152,21 @@ export function BudgetRuleEditor({ initialRule, ingresosQuincena, onChange, onSa
             </div>
             <div className="relative">
               <Input
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={rule[g.id]}
-                onChange={(e) => handleChange(g.id, e.target.value)}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={display[g.id]}
+                placeholder="0"
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setDisplay((prev) => ({ ...prev, [g.id]: v }));
+                }}
+                onBlur={() => syncToRule(g.id, display[g.id])}
                 className={cn(
                   "h-12 text-center text-2xl font-bold font-mono",
                   "border-2 rounded-xl",
                   errors[g.id] ? "border-destructive" : isValid ? "border-positive" : "border-border"
                 )}
-                inputMode="numeric"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-medium">%</span>
             </div>

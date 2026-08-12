@@ -389,6 +389,18 @@ export function dropLegacyCategories() {
   console.log("legacy categories table dropped");
 }
 
+export function addBudgetSubcategoryToTransactions() {
+  const cols = db.$client.prepare("PRAGMA table_info(transactions)").all() as Array<{ name: string }>;
+  if (cols.some((c) => c.name === "budget_subcategory_id")) {
+    console.log("transactions already has budget_subcategory_id");
+    return;
+  }
+  db.$client.exec(`
+    ALTER TABLE transactions ADD COLUMN budget_subcategory_id integer REFERENCES budget_subcategories(id);
+  `);
+  console.log("Added budget_subcategory_id to transactions");
+}
+
 export function runAllMigrations() {
   seedBudgetGroups();
   seedBudgetSubcategories();
@@ -400,5 +412,6 @@ export function runAllMigrations() {
   rebuildTransactionsTable();
   remapTransactions();
   dropLegacyCategories();
+  addBudgetSubcategoryToTransactions();
   console.log("All migrations completed");
 }

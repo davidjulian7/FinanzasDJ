@@ -75,6 +75,7 @@ export const transactions = sqliteTable(
       .references(() => accounts.id),
     accountDestinoId: integer("account_destino_id").references(() => accounts.id),
     categoryId: integer("category_id").references(() => expenseCategories.id),
+    budgetSubcategoryId: integer("budget_subcategory_id").references(() => budgetSubcategories.id),
     fecha: text("fecha").notNull(),
     notas: text("notas"),
   },

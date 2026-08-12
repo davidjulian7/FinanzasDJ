@@ -38,7 +38,7 @@ export function TransactionModal({
   tx?: TxRow | null;
   onSaved?: (row?: TxRow) => void;
 }) {
-  const { accounts: cuentas, expenseCategories: categorias } = useReference();
+  const { accounts: cuentas, expenseCategories: categorias, budgetSubcategories: subcats } = useReference();
   const [loading, setLoading] = useState(false);
 
   const [descripcion, setDescripcion] = useState("");
@@ -47,6 +47,7 @@ export function TransactionModal({
   const [accountId, setAccountId] = useState("");
   const [accountDestinoId, setAccountDestinoId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [budgetSubcategoryId, setBudgetSubcategoryId] = useState("");
   const [fecha, setFecha] = useState(todayISO());
   const [notas, setNotas] = useState("");
 
@@ -58,6 +59,7 @@ export function TransactionModal({
     setAccountId(tx ? String(tx.accountId) : "");
     setAccountDestinoId(tx?.accountDestinoId ? String(tx.accountDestinoId) : "");
     setCategoryId(tx?.categoryId ? String(tx.categoryId) : "");
+    setBudgetSubcategoryId(tx?.budgetSubcategoryId ? String(tx.budgetSubcategoryId) : "");
     setFecha(tx?.fecha ?? todayISO());
     setNotas(tx?.notas ?? "");
   }, [open, tx]);
@@ -65,6 +67,11 @@ export function TransactionModal({
   const categoriasFiltradas = useMemo(
     () => categorias.filter((c) => c.tipo === (tipo === "ingreso" ? "ingreso" : "gasto")),
     [categorias, tipo]
+  );
+
+  const subcatsFiltradas = useMemo(
+    () => subcats.filter((s) => s.activo && s.budgetGroup),
+    [subcats]
   );
 
   async function guardar(e: React.FormEvent) {
@@ -83,6 +90,7 @@ export function TransactionModal({
       accountId: Number(accountId),
       accountDestinoId: tipo === "transferencia" ? Number(accountDestinoId) : null,
       categoryId: tipo === "transferencia" ? null : Number(categoryId),
+      budgetSubcategoryId: tipo === "transferencia" ? null : (budgetSubcategoryId ? Number(budgetSubcategoryId) : null),
       fecha,
       notas: notas || null,
     };
@@ -96,6 +104,7 @@ export function TransactionModal({
       const cuentaNombre = cuentas.find((c) => c.id === Number(accountId))?.nombre ?? "—";
       const cuentaDestino = tipo === "transferencia" ? (cuentas.find((c) => c.id === Number(accountDestinoId))?.nombre ?? "—") : null;
       const cat = tipo === "transferencia" ? undefined : categorias.find((c) => c.id === Number(categoryId));
+      const subcat = tipo !== "transferencia" && budgetSubcategoryId ? subcats.find((s) => s.id === Number(budgetSubcategoryId)) : null;
       onSaved?.({
         id,
         descripcion,
@@ -106,11 +115,14 @@ export function TransactionModal({
         accountId: Number(accountId),
         accountDestinoId: tipo === "transferencia" ? Number(accountDestinoId) : null,
         categoryId: tipo === "transferencia" ? null : Number(categoryId),
+        budgetSubcategoryId: tipo === "transferencia" ? null : (budgetSubcategoryId ? Number(budgetSubcategoryId) : null),
         cuenta: cuentaNombre,
         cuentaDestino,
         categoria: cat?.nombre ?? null,
         icono: cat?.icono ?? null,
         color: cat?.color ?? null,
+        subcategoryNombre: subcat?.nombre ?? null,
+        subcategoryGroupKey: subcat?.budgetGroup?.key ?? null,
       });
       toast.success(tx ? "Transacción actualizada" : "Movimiento registrado");
       onOpenChange(false);
@@ -190,21 +202,44 @@ export function TransactionModal({
                 </Select>
               </div>
             ) : (
-              <div className="space-y-2">
-                <Label htmlFor="tx-categoria">Categoría</Label>
-                <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger id="tx-categoria">
-                    <SelectValue placeholder="Elegí una categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoriasFiltradas.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        {c.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="tx-categoria">Categoría</Label>
+                  <Select value={categoryId} onValueChange={setCategoryId}>
+                    <SelectTrigger id="tx-categoria">
+                      <SelectValue placeholder="Elegí una categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasFiltradas.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tx-subcategoria">Clasificación</Label>
+                  <Select value={budgetSubcategoryId} onValueChange={setBudgetSubcategoryId}>
+                    <SelectTrigger id="tx-subcategoria">
+                      <SelectValue placeholder="Necesidades / Ocio / Ahorro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subcatsFiltradas.map((s) => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className="inline-block size-2 rounded-full"
+                              style={{ backgroundColor: s.budgetGroup?.color }}
+                            />
+                            {s.budgetGroup?.label}: {s.nombre}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
             <div className="col-span-2 space-y-2">
               <Label htmlFor="tx-notas">Notas (opcional)</Label>

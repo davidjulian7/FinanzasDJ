@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,7 @@ interface BudgetSubcategoryManagerProps {
   groupLabel: string;
   groupColor: string;
   initialSubcategories: Subcategory[];
-  onChange: (subcategories: Subcategory[]) => void;
+  onBudgetChange?: (subId: number, monto: number) => void;
   ingresosGrupo: number;
 }
 
@@ -63,7 +63,7 @@ export function BudgetSubcategoryManager({
   groupLabel,
   groupColor,
   initialSubcategories,
-  onChange,
+  onBudgetChange,
   ingresosGrupo,
 }: BudgetSubcategoryManagerProps) {
   const [subcategories, setSubcategories] = useState<Subcategory[]>(initialSubcategories);
@@ -137,48 +137,37 @@ export function BudgetSubcategoryManager({
   };
 
   const handlePresupuestoChange = (subId: number | undefined, value: string) => {
-    const num = Math.max(0, parseInt(value) || 0);
+    const num = value === "" ? 0 : Math.max(0, parseInt(value) || 0);
     setSubcategories((prev) =>
       prev.map((s) => (s.id === subId ? { ...s, presupuesto: num } : s))
     );
+    if (subId && onBudgetChange) {
+      onBudgetChange(subId, num);
+    }
   };
 
   const totalPresupuestado = subcategories.reduce((s, sc) => s + (sc.presupuesto || 0), 0);
   const disponible = ingresosGrupo - totalPresupuestado;
 
-  useState(() => {
-    onChange(subcategories);
-  });
+  useEffect(() => {
+    setSubcategories(initialSubcategories);
+  }, [initialSubcategories]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="btn-gradient flex size-8 items-center justify-center rounded-lg">
-            <span className="text-white font-bold text-sm">{groupLabel[0]}</span>
-          </div>
-          <h4 className="font-semibold">{groupLabel}</h4>
-        </div>
-        <Button size="sm" variant="outline" onClick={() => { resetForm(); setDialogOpen(true); }}>
-          <Plus className="size-3.5 mr-1.5" /> Agregar
-        </Button>
-      </div>
-
-      <div className="rounded-lg border border-border/50 p-3 text-xs">
-        <div className="flex items-center justify-between">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2 text-xs">
+        <div className="flex items-center gap-3">
           <span className="text-muted-foreground">Presupuestado:</span>
           <span className="font-mono font-semibold">{formatCurrency(totalPresupuestado)}</span>
         </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className={cn("font-mono font-semibold", disponible >= 0 ? "text-positive" : "text-destructive")}>
-            Disponible: {formatCurrency(disponible)}
-          </span>
-        </div>
+        <span className={cn("font-mono font-semibold", disponible >= 0 ? "text-positive" : "text-destructive")}>
+          Disp: {formatCurrency(disponible)}
+        </span>
       </div>
 
       {subcategories.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border/50 p-6 text-center text-sm text-muted-foreground">
-          Sin subcategorías. Agrega una para empezar.
+        <div className="rounded-xl border border-dashed border-border/50 p-5 text-center text-sm text-muted-foreground">
+          Sin subcategorías
         </div>
       ) : (
         <div className="space-y-2">
@@ -186,51 +175,62 @@ export function BudgetSubcategoryManager({
             <div
               key={sub.id ?? index}
               className={cn(
-                "flex items-center gap-3 rounded-xl border p-3",
-                sub.activo ? "border-border bg-card" : "border-dashed bg-muted/50 opacity-60"
+                "group rounded-xl border p-3 transition-colors",
+                sub.activo ? "border-border bg-card hover:bg-muted/30" : "border-dashed bg-muted/50 opacity-60"
               )}
             >
-              <button
-                className="text-muted-foreground hover:text-foreground cursor-grab"
-                onClick={() => {}}
-              >
-                <GripVertical className="size-5" />
-              </button>
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${sub.color}22`, color: sub.color }}>
-                <span className="text-lg">{sub.icono[0]}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="truncate font-medium">{sub.nombre}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-2">
-                  {sub.expenseCategories && sub.expenseCategories.length > 0 && (
-                    <span>{sub.expenseCategories.length} categorías</span>
+              <div className="flex items-center gap-2.5">
+                <button
+                  className="text-muted-foreground/40 hover:text-muted-foreground cursor-grab transition-colors"
+                  onClick={() => {}}
+                >
+                  <GripVertical className="size-4" />
+                </button>
+                <div
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sm"
+                  style={{ backgroundColor: `${sub.color}18`, color: sub.color }}
+                >
+                  {sub.icono[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium" title={sub.nombre}>{sub.nombre}</p>
+                  {(sub.expenseCategories?.length || 0) + (sub.recurrents?.length || 0) > 0 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {[sub.expenseCategories?.length ? `${sub.expenseCategories.length} cats` : null, sub.recurrents?.length ? `${sub.recurrents.length} rec` : null].filter(Boolean).join(" · ")}
+                    </p>
                   )}
-                  {sub.recurrents && sub.recurrents.length > 0 && (
-                    <span>{sub.recurrents.length} recurrentes</span>
-                  )}
-                </p>
-              </div>
-              <Input
-                type="number"
-                min={0}
-                step={100}
-                value={sub.presupuesto || 0}
-                onChange={(e) => handlePresupuestoChange(sub.id, e.target.value)}
-                className="h-9 w-28 font-mono text-right text-sm"
-                placeholder="0"
-              />
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(sub)}>
-                  <span className="text-xs">✏️</span>
-                </Button>
-                <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => handleDelete(sub)}>
-                  <Trash2 className="size-3.5" />
-                </Button>
+                </div>
+                <Input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={sub.presupuesto || 0}
+                  onChange={(e) => handlePresupuestoChange(sub.id, e.target.value)}
+                  className="h-8 w-24 shrink-0 font-mono text-right text-xs"
+                  placeholder="0"
+                />
+                <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 max-sm:!opacity-100">
+                  <Button variant="ghost" size="icon" className="size-7" onClick={() => handleEdit(sub)}>
+                    <span className="text-xs">✏️</span>
+                  </Button>
+                  <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => handleDelete(sub)}>
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full border-dashed border-border/60 text-muted-foreground hover:text-foreground"
+        onClick={() => { resetForm(); setDialogOpen(true); }}
+      >
+        <Plus className="size-3.5 mr-1.5" /> Agregar subcategoría
+      </Button>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="glass sm:max-w-md">

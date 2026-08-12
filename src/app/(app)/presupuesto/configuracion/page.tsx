@@ -75,16 +75,15 @@ export default function BudgetConfigPage() {
     setRule(newRule);
   }, []);
 
-  const handleGroupsChange = useCallback((groupKey: "necesidades" | "deseos" | "ahorro", subcats: Array<{ id?: number; presupuesto?: number }>) => {
+  const handleBudgetChange = useCallback((groupKey: "necesidades" | "deseos" | "ahorro", subId: number, monto: number) => {
     setGroups((prev) =>
       prev.map((g) =>
         g.key === groupKey
           ? {
               ...g,
-              subcategories: g.subcategories.map((sc) => {
-                const updated = subcats.find((s) => s.id === sc.id);
-                return updated ? { ...sc, presupuesto: updated.presupuesto ?? sc.presupuesto } : sc;
-              }),
+              subcategories: g.subcategories.map((sc) =>
+                sc.id === subId ? { ...sc, presupuesto: monto } : sc
+              ),
             }
           : g
       )
@@ -210,51 +209,63 @@ export default function BudgetConfigPage() {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             {groups.map((g) => {
               const disponible = grupoMontos[g.key] - g.recurrentTotal;
+              const pctUsed = grupoMontos[g.key] > 0
+                ? Math.min(100, ((grupoMontos[g.key] - disponible) / grupoMontos[g.key]) * 100)
+                : 0;
               return (
-                <div key={g.id} className="space-y-4">
-                  <div className="glass glow-hover rounded-2xl border border-border p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <div
-                        className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                        style={{ backgroundColor: `${g.color}22`, color: g.color }}
-                      >
-                        <span className="font-bold">{g.label[0]}</span>
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{g.label}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          {g.subcategories.length} subcategorías · {g.recurrentTotal > 0 && `${formatCurrency(g.recurrentTotal)} recurrentes`}
-                        </p>
-                      </div>
+                <div key={g.id} className="glass glow-hover rounded-2xl border border-border p-4 sm:p-5">
+                  <div className="mb-4 flex items-start gap-3">
+                    <div
+                      className="flex size-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
+                      style={{ backgroundColor: `${g.color}18`, color: g.color }}
+                    >
+                      {g.label[0]}
                     </div>
-
-                    <div className="mb-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">% del ingreso ({rule[g.key]}%)</span>
-                        <span className="font-mono font-semibold">{formatCurrency(grupoMontos[g.key])}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">{g.label}</h3>
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[11px] font-mono font-semibold"
+                          style={{ backgroundColor: `${g.color}18`, color: g.color }}
+                        >
+                          {rule[g.key]}%
+                        </span>
                       </div>
-                      {g.recurrentTotal > 0 && (
-                        <div className="flex justify-between text-warning">
-                          <span>Gastos recurrentes comprometidos</span>
-                          <span className="font-mono">{formatCurrency(g.recurrentTotal)}</span>
-                        </div>
-                      )}
-                      <div className={cn("flex justify-between border-t pt-2", disponible >= 0 ? "text-positive" : "text-destructive")}>
-                        <span className="font-medium">Disponible para distribuir</span>
-                        <span className="font-mono font-semibold">{formatCurrency(disponible)}</span>
-                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {formatCurrency(grupoMontos[g.key])} del ingreso
+                        {g.recurrentTotal > 0 && ` · ${formatCurrency(g.recurrentTotal)} en recurrentes`}
+                      </p>
                     </div>
-
-                    <BudgetSubcategoryManager
-                      groupId={g.id}
-                      groupKey={g.key}
-                      groupLabel={g.label}
-                      groupColor={g.color}
-                      initialSubcategories={g.subcategories}
-                      onChange={(subcats) => handleGroupsChange(g.key, subcats)}
-                      ingresosGrupo={grupoMontos[g.key]}
-                    />
                   </div>
+
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
+                      <span>Disponible</span>
+                      <span className={cn("font-mono font-semibold", disponible >= 0 ? "text-positive" : "text-destructive")}>
+                        {formatCurrency(disponible)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${pctUsed}%`,
+                          backgroundColor: g.color,
+                          opacity: 0.7,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <BudgetSubcategoryManager
+                    groupId={g.id}
+                    groupKey={g.key}
+                    groupLabel={g.label}
+                    groupColor={g.color}
+                    initialSubcategories={g.subcategories}
+                    onBudgetChange={(subId, monto) => handleBudgetChange(g.key, subId, monto)}
+                    ingresosGrupo={grupoMontos[g.key]}
+                  />
                 </div>
               );
             })}

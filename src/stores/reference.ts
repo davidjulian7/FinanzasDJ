@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { create } from "zustand";
 import { api } from "@/lib/api";
-import type { AccountRow, ExpenseCategoryRow } from "@/lib/types";
+import type { AccountRow, ExpenseCategoryRow, BudgetSubcategoryWithGroup } from "@/lib/types";
 
 interface ReferenceState {
   accounts: AccountRow[] | null;
   expenseCategories: ExpenseCategoryRow[] | null;
+  budgetSubcategories: BudgetSubcategoryWithGroup[] | null;
   loaded: boolean;
   loading: boolean;
   load: (force?: boolean) => Promise<void>;
@@ -20,6 +21,7 @@ let inflight: Promise<void> | null = null;
 export const useReferenceStore = create<ReferenceState>()((set, get) => ({
   accounts: null,
   expenseCategories: null,
+  budgetSubcategories: null,
   loaded: false,
   loading: false,
   load: async (force = false) => {
@@ -30,9 +32,10 @@ export const useReferenceStore = create<ReferenceState>()((set, get) => ({
     inflight = Promise.all([
       api.get<AccountRow[]>("/api/accounts", { cache: "default" }),
       api.get<ExpenseCategoryRow[]>("/api/expense-categories", { cache: "default" }),
+      api.get<BudgetSubcategoryWithGroup[]>("/api/budget-subcategories", { cache: "default" }),
     ])
-      .then(([accounts, expenseCategories]) => {
-        set({ accounts, expenseCategories, loaded: true, loading: false });
+      .then(([accounts, expenseCategories, budgetSubcategories]) => {
+        set({ accounts, expenseCategories, budgetSubcategories, loaded: true, loading: false });
       })
       .catch((e) => {
         set({ loading: false });
@@ -51,6 +54,7 @@ export const useReferenceStore = create<ReferenceState>()((set, get) => ({
 export function useReference() {
   const accounts = useReferenceStore((s) => s.accounts);
   const expenseCategories = useReferenceStore((s) => s.expenseCategories);
+  const budgetSubcategories = useReferenceStore((s) => s.budgetSubcategories);
   const loaded = useReferenceStore((s) => s.loaded);
   const load = useReferenceStore((s) => s.load);
 
@@ -60,9 +64,14 @@ export function useReference() {
     });
   }, [load]);
 
+  const emptyAccounts = useMemo(() => [] as AccountRow[], []);
+  const emptyCategories = useMemo(() => [] as ExpenseCategoryRow[], []);
+  const emptySubcats = useMemo(() => [] as BudgetSubcategoryWithGroup[], []);
+
   return {
-    accounts: accounts ?? [],
-    expenseCategories: expenseCategories ?? [],
+    accounts: accounts ?? emptyAccounts,
+    expenseCategories: expenseCategories ?? emptyCategories,
+    budgetSubcategories: budgetSubcategories ?? emptySubcats,
     loaded,
     loading: useReferenceStore((s) => s.loading),
     reload: useCallback(() => load(true), [load]),

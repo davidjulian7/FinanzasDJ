@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { CircleDollarSign, HandCoins, Pencil, Plus, Trash2 } from "lucide-react";
+import { CircleDollarSign, HandCoins, Pencil, Plus, Trash2, CreditCard, CalendarCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { useReference } from "@/stores/reference";
-import type { DebtRow } from "@/lib/types";
+import type { DebtRow, CuotaRow } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import {
   Dialog,
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 export default function DebtsPage() {
   const [deudas, setDeudas] = useState<DebtRow[] | null>(null);
+  const [cuotas, setCuotas] = useState<CuotaRow[] | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [crearOpen, setCrearOpen] = useState(false);
   const [editando, setEditando] = useState<DebtRow | null>(null);
@@ -38,10 +39,16 @@ export default function DebtsPage() {
 
   const cargar = useCallback(async () => {
     try {
-      setDeudas(await api.get<DebtRow[]>("/api/debts"));
+      const [d, c] = await Promise.all([
+        api.get<DebtRow[]>("/api/debts"),
+        api.get<CuotaRow[]>("/api/cuotas"),
+      ]);
+      setDeudas(d);
+      setCuotas(c);
     } catch {
       toast.error("No se pudieron cargar las deudas");
       setDeudas([]);
+      setCuotas([]);
     }
   }, []);
 
@@ -51,20 +58,24 @@ export default function DebtsPage() {
 
   const porPagar = (deudas ?? []).filter((d) => d.tipo === "por_pagar");
   const porCobrar = (deudas ?? []).filter((d) => d.tipo === "por_cobrar");
+  const cuotasActivas = (cuotas ?? []).filter((c) => c.pagadas < c.meses);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {deudas ? `${porPagar.length} para pagar · ${porCobrar.length} para cobrar` : "Cargando…"}
+          {deudas !== null && cuotas !== null
+            ? `${porPagar.length} deudas · ${cuotasActivas.length} cuotas activas · ${porCobrar.length} por cobrar`
+            : "Cargando…"}
         </p>
         <Button className="btn-gradient gap-1.5" onClick={() => { setEditando(null); setCrearOpen(true); }}>
           <Plus className="size-4" /> Nueva deuda
         </Button>
       </div>
 
-      {deudas === null ? (
+      {deudas === null || cuotas === null ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Skeleton className="h-44 rounded-2xl" />
           <Skeleton className="h-44 rounded-2xl" />
           <Skeleton className="h-44 rounded-2xl" />
         </div>
@@ -80,6 +91,21 @@ export default function DebtsPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {porPagar.map((d) => (
                   <DebtCard key={d.id} debt={d} onPagar={setPagando} onEditar={setEditando} onEliminar={setEliminando} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-warning">
+              <CreditCard className="size-4" /> Compras a meses ({cuotasActivas.length})
+            </h2>
+            {cuotasActivas.length === 0 ? (
+              <Empty text="No tenés compras a meses activas" />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {cuotasActivas.map((c) => (
+                  <CuotaCard key={c.id} cuota={c} />
                 ))}
               </div>
             )}
@@ -202,6 +228,48 @@ function DebtCard({
           <CircleDollarSign className="size-3.5" />
           {esDeuda ? "Registrar pago" : "Registrar cobro"}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function CuotaCard({ cuota }: { cuota: CuotaRow }) {
+  const restantes = cuota.meses - cuota.pagadas;
+  const saldoPendiente = cuota.cuota * restantes;
+  const pagado = cuota.meses > 0 ? (cuota.pagadas / cuota.meses) * 100 : 0;
+
+  return (
+    <div className="glass glow-hover rounded-2xl border border-border p-5">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold">{cuota.descripcion}</p>
+          <p className="text-xs text-muted-foreground">{cuota.cuenta}</p>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
+          <CalendarCheck className="size-3" />
+          {restantes} {restantes === 1 ? "mes" : "meses"}
+        </div>
+      </div>
+      <div className="mt-4 flex items-end justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">Saldo pendiente</p>
+          <p className="font-mono text-2xl font-bold text-warning">
+            {formatCurrency(saldoPendiente)}
+          </p>
+        </div>
+        <p className="font-mono text-xs text-muted-foreground">
+          cuota {formatCurrency(cuota.cuota)}/mes
+        </p>
+      </div>
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-warning/70 transition-all duration-500"
+          style={{ width: `${pagado}%` }}
+        />
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <span>{cuota.pagadas}/{cuota.meses} cuotas pagadas</span>
+        <span>{Math.round(pagado)}%</span>
       </div>
     </div>
   );

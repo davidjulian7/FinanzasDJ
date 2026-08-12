@@ -10,11 +10,14 @@ export interface TxRow {
   accountId: number;
   accountDestinoId: number | null;
   categoryId: number | null;
+  budgetSubcategoryId: number | null;
   cuenta: string;
   cuentaDestino: string | null;
   categoria: string | null;
   icono: string | null;
   color: string | null;
+  subcategoryNombre: string | null;
+  subcategoryGroupKey: string | null;
 }
 
 export type AccountTipo = "debito" | "credito" | "efectivo" | "inversion";
@@ -49,6 +52,10 @@ export interface BudgetSubcategoryRow {
   color: string;
   orden: number;
   activo: boolean;
+}
+
+export interface BudgetSubcategoryWithGroup extends BudgetSubcategoryRow {
+  budgetGroup: BudgetGroupRow | undefined;
 }
 
 export interface ExpenseCategoryRow {

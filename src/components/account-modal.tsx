@@ -241,11 +241,11 @@ export function AccountModal({
       });
       setCategorias((prev) => [
         ...prev,
-        { id: res.id, nombre: catNombre.trim(), tipo: movTipo, icono: catIcono, color: catColor, budgetSubcategoryId: null, activo: true },
+        { id: res.id, nombre: catNombre.trim(), tipo: movTipo, icono: catIcono, color: catColor, budgetGroupId: null, budgetGroup: null, activo: true },
       ]);
       useReferenceStore.getState().replaceExpenseCategories([
         ...(useReferenceStore.getState().expenseCategories ?? []),
-        { id: res.id, nombre: catNombre.trim(), tipo: movTipo, icono: catIcono, color: catColor, budgetSubcategoryId: null, activo: true },
+        { id: res.id, nombre: catNombre.trim(), tipo: movTipo, icono: catIcono, color: catColor, budgetGroupId: null, budgetGroup: null, activo: true },
       ]);
       setMovCategoria(String(res.id));
       setNuevaCat(false);

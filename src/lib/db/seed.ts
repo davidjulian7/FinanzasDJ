@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "./index";
-import { accounts, budgets, budgetSubcategories, debts, expenseCategories, settings, transactions } from "./schema";
+import { accounts, budgetGroups, debts, expenseCategories, settings, transactions } from "./schema";
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -56,19 +56,6 @@ const categoryDefs: Array<{
   { nombre: "Cobro de deudas", tipo: "ingreso" as const, icono: "HandCoins", color: "#A855F7", grupo: null },
 ];
 
-const budgetDefs: Record<string, number> = {
-  "Comida y Supermercado": 160000,
-  Transporte: 70000,
-  "Servicios y Alquiler": 150000,
-  Salud: 50000,
-  "Salidas y Ocio": 90000,
-  Shopping: 80000,
-  Suscripciones: 40000,
-  Viajes: 120000,
-  "Educación": 50000,
-  "Ahorro e Inversión": 120000,
-};
-
 const debtDefs = [
   { nombre: "Préstamo personal", tipo: "por_pagar" as const, personaOAcreedor: "Banco Nación", montoOriginal: 500000, saldoPendiente: 320000, offsetInicio: 200 },
   { nombre: "Tarjeta de crédito", tipo: "por_pagar" as const, personaOAcreedor: "Visa", montoOriginal: 250000, saldoPendiente: 120000, offsetInicio: 60 },
@@ -95,10 +82,19 @@ export function seedDatabase() {
   }
 
   const catIds: Record<string, number> = {};
+  const grupos = db.select().from(budgetGroups).all();
+  const groupByKey = new Map(grupos.map((g) => [g.key, g.id]));
   for (const c of categoryDefs) {
     const row = db
       .insert(expenseCategories)
-      .values({ nombre: c.nombre, tipo: c.tipo, icono: c.icono, color: c.color, budgetSubcategoryId: null, activo: true })
+      .values({
+        nombre: c.nombre,
+        tipo: c.tipo,
+        icono: c.icono,
+        color: c.color,
+        budgetGroupId: c.grupo ? (groupByKey.get(c.grupo) ?? null) : null,
+        activo: true,
+      })
       .returning({ id: expenseCategories.id, nombre: expenseCategories.nombre })
       .all()[0];
     catIds[c.nombre] = row.id;
@@ -242,26 +238,6 @@ export function seedDatabase() {
 
   for (const [name, saldo] of Object.entries(balances)) {
     db.update(accounts).set({ saldoActual: Math.round(saldo) }).where(eq(accounts.nombre, name)).run();
-  }
-
-  const hoy = new Date();
-  const meses: Array<{ mes: number; anio: number }> = [];
-  meses.push({ mes: hoy.getMonth() + 1, anio: hoy.getFullYear() });
-  const prev = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-  meses.push({ mes: prev.getMonth() + 1, anio: prev.getFullYear() });
-
-  const subcats = db.select().from(budgetSubcategories).all();
-  const subcatByNombre = new Map(subcats.map((s) => [s.nombre, s.id]));
-
-  for (const { mes, anio } of meses) {
-    for (const [nombre, monto] of Object.entries(budgetDefs)) {
-      const subcatId = subcatByNombre.get(nombre);
-      if (!subcatId) continue;
-      db.insert(budgets)
-        .values({ mes, anio, budgetSubcategoryId: subcatId, montoPresupuestado: monto })
-        .onConflictDoNothing()
-        .run();
-    }
   }
 
   for (const de of debtDefs) {

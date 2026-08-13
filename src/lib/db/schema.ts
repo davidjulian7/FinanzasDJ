@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 
 export const accounts = sqliteTable("accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -22,25 +22,13 @@ export const budgetGroups = sqliteTable("budget_groups", {
   orden: integer("orden").notNull().default(0),
 });
 
-export const budgetSubcategories = sqliteTable("budget_subcategories", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  budgetGroupId: integer("budget_group_id")
-    .notNull()
-    .references(() => budgetGroups.id),
-  nombre: text("nombre").notNull(),
-  icono: text("icono").notNull().default("Tag"),
-  color: text("color").notNull().default("#7C3AED"),
-  orden: integer("orden").notNull().default(0),
-  activo: integer("activo", { mode: "boolean" }).notNull().default(true),
-});
-
 export const expenseCategories = sqliteTable("expense_categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nombre: text("nombre").notNull(),
   icono: text("icono").notNull().default("Tag"),
   color: text("color").notNull().default("#7C3AED"),
   tipo: text("tipo", { enum: ["gasto", "ingreso"] }).notNull().default("gasto"),
-  budgetSubcategoryId: integer("budget_subcategory_id").references(() => budgetSubcategories.id),
+  budgetGroupId: integer("budget_group_id").references(() => budgetGroups.id),
   activo: integer("activo", { mode: "boolean" }).notNull().default(true),
 });
 
@@ -75,7 +63,6 @@ export const transactions = sqliteTable(
       .references(() => accounts.id),
     accountDestinoId: integer("account_destino_id").references(() => accounts.id),
     categoryId: integer("category_id").references(() => expenseCategories.id),
-    budgetSubcategoryId: integer("budget_subcategory_id").references(() => budgetSubcategories.id),
     fecha: text("fecha").notNull(),
     notas: text("notas"),
   },
@@ -85,21 +72,6 @@ export const transactions = sqliteTable(
     index("idx_transactions_category").on(t.categoryId),
     index("idx_transactions_tipo").on(t.tipo),
   ]
-);
-
-export const budgets = sqliteTable(
-  "budgets",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    mes: integer("mes").notNull(),
-    anio: integer("anio").notNull(),
-    quincena: integer("quincena").notNull().default(1),
-    budgetSubcategoryId: integer("budget_subcategory_id")
-      .notNull()
-      .references(() => budgetSubcategories.id),
-    montoPresupuestado: real("monto_presupuestado").notNull().default(0),
-  },
-  (t) => [uniqueIndex("idx_budgets_mes_anio_q_cat").on(t.mes, t.anio, t.quincena, t.budgetSubcategoryId)]
 );
 
 export const debts = sqliteTable("debts", {
@@ -143,15 +115,12 @@ export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type BudgetGroup = typeof budgetGroups.$inferSelect;
 export type NewBudgetGroup = typeof budgetGroups.$inferInsert;
-export type BudgetSubcategory = typeof budgetSubcategories.$inferSelect;
-export type NewBudgetSubcategory = typeof budgetSubcategories.$inferInsert;
 export type ExpenseCategory = typeof expenseCategories.$inferSelect;
 export type NewExpenseCategory = typeof expenseCategories.$inferInsert;
 export type RecurringExpense = typeof recurringExpenses.$inferSelect;
 export type NewRecurringExpense = typeof recurringExpenses.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
-export type Budget = typeof budgets.$inferSelect;
 export type Debt = typeof debts.$inferSelect;
 export type NewDebt = typeof debts.$inferInsert;
 export type Cuota = typeof cuotas.$inferSelect;

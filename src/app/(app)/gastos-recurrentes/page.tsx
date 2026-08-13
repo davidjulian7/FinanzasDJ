@@ -19,7 +19,7 @@ interface RecurringExpense {
   expenseCategoryId: number;
   accountId: number;
   budgetGroupId: number;
-  expenseCategory: { id: number; nombre: string; icono: string; color: string; budgetSubcategoryId: number | null } | null;
+  expenseCategory: { id: number; nombre: string; icono: string; color: string; budgetGroupId: number | null } | null;
   account: { id: number; nombre: string; tipo: string; color: string; icono: string } | null;
   budgetGroup: { id: number; key: string; label: string; color: string; icono: string; orden: number } | null;
   nota: string | null;

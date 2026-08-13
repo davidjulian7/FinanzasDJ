@@ -1,28 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { expenseCategories, budgetSubcategories } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { expenseCategories, budgetGroups } from "@/lib/db/schema";
 import { apiError, handleError } from "@/lib/api-server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const cats = db.select().from(expenseCategories).all();
-  const subcats = db.select().from(budgetSubcategories).all();
-  const subcatById = new Map(subcats.map((s) => [s.id, s]));
+  const groups = db.select().from(budgetGroups).all();
+  const groupById = new Map(groups.map((g) => [g.id, g]));
 
-  const withSubcat = cats.map((c) => ({
+  const withGroup = cats.map((c) => ({
     ...c,
-    budgetSubcategory: c.budgetSubcategoryId ? subcatById.get(c.budgetSubcategoryId) : null,
+    budgetGroup: c.budgetGroupId ? groupById.get(c.budgetGroupId) ?? null : null,
   }));
 
-  return NextResponse.json(withSubcat);
+  return NextResponse.json(withGroup);
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { nombre, icono, color, budgetSubcategoryId } = body;
+    const { nombre, icono, color, budgetGroupId } = body;
 
     if (!nombre) {
       return apiError("nombre es requerido");
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
         nombre,
         icono: icono ?? "Tag",
         color: color ?? "#7C3AED",
-        budgetSubcategoryId: budgetSubcategoryId ?? null,
+        budgetGroupId: budgetGroupId ?? null,
         tipo: body?.tipo === "ingreso" ? "ingreso" : "gasto",
         activo: true,
       })

@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await req.json();
-    const { nombre, icono, color, budgetSubcategoryId, activo } = body;
+    const { nombre, icono, color, budgetGroupId, activo } = body;
 
     const existing = db.select().from(expenseCategories).where(eq(expenseCategories.id, Number(id))).all()[0];
     if (!existing) {
@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (nombre !== undefined) updateData.nombre = nombre;
     if (icono !== undefined) updateData.icono = icono;
     if (color !== undefined) updateData.color = color;
-    if (budgetSubcategoryId !== undefined) updateData.budgetSubcategoryId = budgetSubcategoryId ?? null;
+    if (budgetGroupId !== undefined) updateData.budgetGroupId = budgetGroupId ?? null;
     if (activo !== undefined) updateData.activo = activo ? 1 : 0;
 
     db.update(expenseCategories).set(updateData).where(eq(expenseCategories.id, Number(id))).run();

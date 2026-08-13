@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { budgetGroups, budgetSubcategories, expenseCategories, recurringExpenses, accounts, budgets, settings } from "@/lib/db/schema";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { budgetGroups, expenseCategories, recurringExpenses, settings } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { apiError, handleError } from "@/lib/api-server";
-import { getReglaPct, getIngresoQuincena, setSetting, ingresoKey, type ReglaPct } from "@/lib/settings";
-import { quincenaRango } from "@/lib/ranges";
+import { getReglaPct, getIngresoQuincena, ingresoKey, type ReglaPct } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -19,26 +18,15 @@ export async function GET(req: NextRequest) {
   }
 
   const groups = db.select().from(budgetGroups).all();
-  const subcats = db.select().from(budgetSubcategories).where(eq(budgetSubcategories.activo, true)).all();
   const expCats = db.select().from(expenseCategories).where(eq(expenseCategories.activo, true)).all();
   const recurrents = db.select().from(recurringExpenses).where(eq(recurringExpenses.activo, true)).all();
-  const accs = db.select().from(accounts).all();
-  const accById = new Map(accs.map((a) => [a.id, a]));
 
-  const budgetRows = db
-    .select()
-    .from(budgets)
-    .where(and(eq(budgets.mes, mes), eq(budgets.anio, anio), eq(budgets.quincena, quincena)))
-    .all();
-  const budgetBySubcat = new Map(budgetRows.map((b) => [b.budgetSubcategoryId, b.montoPresupuestado]));
-
-  const catBySubcat = new Map<number, typeof expCats>();
+  const catsByGroup = new Map<number, typeof expCats>();
   for (const c of expCats) {
-    if (c.budgetSubcategoryId) {
-      const arr = catBySubcat.get(c.budgetSubcategoryId) ?? [];
-      arr.push(c);
-      catBySubcat.set(c.budgetSubcategoryId, arr);
-    }
+    if (!c.budgetGroupId) continue;
+    const arr = catsByGroup.get(c.budgetGroupId) ?? [];
+    arr.push(c);
+    catsByGroup.set(c.budgetGroupId, arr);
   }
 
   const recurrentByGroup = new Map<number, typeof recurrents>();
@@ -48,31 +36,16 @@ export async function GET(req: NextRequest) {
     recurrentByGroup.set(r.budgetGroupId, arr);
   }
 
-  const subcatByGroup = new Map<number, typeof subcats>();
-  for (const s of subcats) {
-    const arr = subcatByGroup.get(s.budgetGroupId) ?? [];
-    arr.push(s);
-    subcatByGroup.set(s.budgetGroupId, arr);
-  }
-
   const regla = getReglaPct();
   const ingresosQuincena = getIngresoQuincena(anio, mes, quincena);
 
-  const groupsWithData = groups.map((g) => {
-    const groupSubcats = subcatByGroup.get(g.id) ?? [];
-    const groupRecurrents = recurrentByGroup.get(g.id) ?? [];
+  const groupsWithData = groups.map((g) => ({
+    ...g,
+    categorias: catsByGroup.get(g.id) ?? [],
+    recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + r.monto, 0),
+  }));
 
-    return {
-      ...g,
-      subcategories: groupSubcats.map((s) => ({
-        ...s,
-        expenseCategories: catBySubcat.get(s.id) ?? [],
-        recurrents: groupRecurrents.filter((r) => r.expenseCategoryId && (catBySubcat.get(s.id) ?? []).some((c) => c.id === r.expenseCategoryId)),
-        presupuestado: budgetBySubcat.get(s.id) ?? 0,
-      })),
-      recurrentTotal: groupRecurrents.reduce((sum, r) => sum + r.monto, 0),
-    };
-  });
+  const sinGrupo = expCats.filter((c) => !c.budgetGroupId);
 
   return NextResponse.json({
     mes,
@@ -81,13 +54,14 @@ export async function GET(req: NextRequest) {
     ingresosQuincena,
     regla,
     groups: groupsWithData,
+    sinGrupo,
   });
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { mes, anio, quincena, ingresosQuincena, regla, subcategories } = body;
+    const { mes, anio, quincena, ingresosQuincena, regla } = body;
 
     if (!mes || !anio) {
       return apiError("Parámetros mes y año requeridos");
@@ -116,26 +90,6 @@ export async function POST(req: NextRequest) {
         .values({ key: "regla_pct", value: JSON.stringify(reglaData) })
         .onConflictDoUpdate({ target: settings.key, set: { value: JSON.stringify(reglaData) } })
         .run();
-
-      if (Array.isArray(subcategories)) {
-        for (const sc of subcategories) {
-          if (sc.budgetSubcategoryId && sc.montoPresupuestado !== undefined) {
-            tx.insert(budgets)
-              .values({
-                mes,
-                anio,
-                quincena: quincena ?? 1,
-                budgetSubcategoryId: sc.budgetSubcategoryId,
-                montoPresupuestado: Math.max(0, Number(sc.montoPresupuestado) || 0),
-              })
-              .onConflictDoUpdate({
-                target: [budgets.mes, budgets.anio, budgets.quincena, budgets.budgetSubcategoryId],
-                set: { montoPresupuestado: Math.max(0, Number(sc.montoPresupuestado) || 0) },
-              })
-              .run();
-          }
-        }
-      }
     });
 
     return NextResponse.json({ ok: true });

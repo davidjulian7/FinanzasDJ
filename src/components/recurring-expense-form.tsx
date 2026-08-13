@@ -69,7 +69,7 @@ const FRECUENCIAS = [
 
 export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved }: RecurringExpenseFormProps) {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Array<{ id: number; nombre: string; budgetSubcategoryId: number | null; budgetSubcategory?: { budgetGroupId: number } }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: number; nombre: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>([]);
   const [accounts, setAccounts] = useState<Array<{ id: number; nombre: string; tipo: string }>>([]);
   const [groups, setGroups] = useState<Array<{ id: number; key: string; label: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -89,7 +89,7 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
   const fetchRefs = useCallback(async () => {
     try {
       const [cats, accs, grps] = await Promise.all([
-        api.get<Array<{ id: number; nombre: string; budgetSubcategoryId: number | null; budgetSubcategory?: { budgetGroupId: number } }>>("/api/expense-categories"),
+        api.get<Array<{ id: number; nombre: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>("/api/expense-categories"),
         api.get<Array<{ id: number; nombre: string; tipo: string }>>("/api/accounts"),
         api.get<Array<{ id: number; key: string; label: string }>>("/api/budget-groups"),
       ]);

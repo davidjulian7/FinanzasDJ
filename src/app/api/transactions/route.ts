@@ -2,7 +2,7 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, handleError } from "@/lib/api-server";
 import { db } from "@/lib/db";
-import { accounts, expenseCategories, transactions, budgetSubcategories, budgetGroups } from "@/lib/db/schema";
+import { accounts, expenseCategories, transactions, budgetGroups } from "@/lib/db/schema";
 import { crearTransaccion, type TxInput } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -33,16 +33,13 @@ export async function GET(req: NextRequest) {
   const cuentaById = new Map(cuentas.map((c) => [c.id, c]));
   const cats = db.select().from(expenseCategories).all();
   const catById = new Map(cats.map((c) => [c.id, c]));
-  const subcats = db.select().from(budgetSubcategories).all();
-  const subcatById = new Map(subcats.map((s) => [s.id, s]));
   const groups = db.select().from(budgetGroups).all();
   const groupById = new Map(groups.map((g) => [g.id, g]));
 
   return NextResponse.json(
     rows.map((t) => {
       const cat = t.categoryId ? catById.get(t.categoryId) : undefined;
-      const subcat = t.budgetSubcategoryId ? subcatById.get(t.budgetSubcategoryId) : undefined;
-      const group = subcat ? groupById.get(subcat.budgetGroupId) : undefined;
+      const group = cat?.budgetGroupId ? groupById.get(cat.budgetGroupId) : undefined;
       return {
         id: t.id,
         descripcion: t.descripcion,
@@ -53,14 +50,12 @@ export async function GET(req: NextRequest) {
         accountId: t.accountId,
         accountDestinoId: t.accountDestinoId,
         categoryId: t.categoryId,
-        budgetSubcategoryId: t.budgetSubcategoryId,
         cuenta: cuentaById.get(t.accountId)?.nombre ?? "—",
         cuentaDestino: t.accountDestinoId ? (cuentaById.get(t.accountDestinoId)?.nombre ?? "—") : null,
         categoria: cat?.nombre ?? null,
         icono: cat?.icono ?? null,
         color: cat?.color ?? null,
-        subcategoryNombre: subcat?.nombre ?? null,
-        subcategoryGroupKey: group?.key ?? null,
+        budgetGroupKey: group?.key ?? null,
       };
     })
   );
@@ -76,7 +71,6 @@ export async function POST(req: NextRequest) {
       accountId: Number(body.accountId),
       accountDestinoId: body.accountDestinoId ? Number(body.accountDestinoId) : null,
       categoryId: body.categoryId ? Number(body.categoryId) : null,
-      budgetSubcategoryId: body.budgetSubcategoryId ? Number(body.budgetSubcategoryId) : null,
       fecha: body.fecha ?? "",
       notas: body.notas ?? null,
     });

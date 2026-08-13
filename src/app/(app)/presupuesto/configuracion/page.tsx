@@ -2,37 +2,25 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Save, RefreshCw } from "lucide-react";
+import { Save, Minus } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { api } from "@/lib/api";
+import { useReference } from "@/stores/reference";
 import { BudgetRuleEditor } from "@/components/budget-rule-editor";
-import { BudgetSubcategoryManager } from "@/components/budget-subcategory-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-interface BudgetGroupData {
-  id: number;
-  key: "necesidades" | "deseos" | "ahorro";
-  label: string;
-  color: string;
-  icono: string;
-  orden: number;
-  subcategories: Array<{
-    id: number;
-    nombre: string;
-    icono: string;
-    color: string;
-    orden: number;
-    activo: boolean;
-    presupuesto: number;
-    expenseCategories: Array<{ id: number; nombre: string }>;
-    recurrents: Array<{ id: number; nombre: string; monto: number }>;
-  }>;
-  recurrentTotal: number;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { BudgetConfigData, BudgetConfigGroup, ExpenseCategoryRow } from "@/lib/types";
 
 export default function BudgetConfigPage() {
+  const { reload: reloadReferences } = useReference();
   const [mes, setMes] = useState(() => {
     const hoy = new Date();
     return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
@@ -40,7 +28,8 @@ export default function BudgetConfigPage() {
   const [quincena, setQuincena] = useState<1 | 2>(() => (new Date().getDate() <= 15 ? 1 : 2));
   const [ingresosQuincena, setIngresosQuincena] = useState("");
   const [rule, setRule] = useState({ necesidades: 50, deseos: 30, ahorro: 20 });
-  const [groups, setGroups] = useState<BudgetGroupData[]>([]);
+  const [groups, setGroups] = useState<BudgetConfigGroup[]>([]);
+  const [sinGrupo, setSinGrupo] = useState<ExpenseCategoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -48,18 +37,11 @@ export default function BudgetConfigPage() {
     setLoading(true);
     try {
       const [m, a] = mes.split("-").map(Number);
-      const data = await api.get<{
-        mes: number;
-        anio: number;
-        quincena: number;
-        ingresosQuincena: number;
-        regla: { necesidades: number; deseos: number; ahorro: number };
-        groups: BudgetGroupData[];
-      }>(`/api/budget/config?mes=${m}&anio=${a}&quincena=${quincena}`);
-      
+      const data = await api.get<BudgetConfigData>(`/api/budget/config?mes=${m}&anio=${a}&quincena=${quincena}`);
       setIngresosQuincena(data.ingresosQuincena > 0 ? String(data.ingresosQuincena) : "");
       setRule(data.regla);
       setGroups(data.groups);
+      setSinGrupo(data.sinGrupo);
     } catch {
       toast.error("No se pudo cargar la configuración");
     } finally {
@@ -73,21 +55,6 @@ export default function BudgetConfigPage() {
 
   const handleRuleChange = useCallback((newRule: { necesidades: number; deseos: number; ahorro: number }) => {
     setRule(newRule);
-  }, []);
-
-  const handleBudgetChange = useCallback((groupKey: "necesidades" | "deseos" | "ahorro", subId: number, monto: number) => {
-    setGroups((prev) =>
-      prev.map((g) =>
-        g.key === groupKey
-          ? {
-              ...g,
-              subcategories: g.subcategories.map((sc) =>
-                sc.id === subId ? { ...sc, presupuesto: monto } : sc
-              ),
-            }
-          : g
-      )
-    );
   }, []);
 
   const ingresos = Number(ingresosQuincena) || 0;
@@ -108,21 +75,12 @@ export default function BudgetConfigPage() {
     setSaving(true);
     try {
       const [m, a] = mes.split("-").map(Number);
-      const subcategories = groups.flatMap((g) =>
-        g.subcategories
-          .filter((s) => s.activo)
-          .map((s) => ({
-            budgetSubcategoryId: s.id,
-            montoPresupuestado: s.presupuesto || 0,
-          }))
-      );
       await api.post("/api/budget/config", {
         mes: m,
         anio: a,
         quincena,
         ingresosQuincena: ingresos,
         regla: rule,
-        subcategories,
       });
       toast.success("Presupuesto guardado");
     } catch (e) {
@@ -131,6 +89,26 @@ export default function BudgetConfigPage() {
       setSaving(false);
     }
   };
+
+  const asignarCategoria = async (groupId: number, categoryId: number) => {
+    try {
+      await api.patch(`/api/expense-categories/${categoryId}`, { budgetGroupId: groupId });
+      await Promise.all([cargar(), reloadReferences()]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo asignar la categoría");
+    }
+  };
+
+  const quitarCategoria = async (categoryId: number) => {
+    try {
+      await api.patch(`/api/expense-categories/${categoryId}`, { budgetGroupId: null });
+      await Promise.all([cargar(), reloadReferences()]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo quitar la categoría");
+    }
+  };
+
+  const gatosSinGrupo = sinGrupo.filter((c) => c.tipo === "gasto");
 
   return (
     <div className="space-y-5">
@@ -257,15 +235,51 @@ export default function BudgetConfigPage() {
                     </div>
                   </div>
 
-                  <BudgetSubcategoryManager
-                    groupId={g.id}
-                    groupKey={g.key}
-                    groupLabel={g.label}
-                    groupColor={g.color}
-                    initialSubcategories={g.subcategories}
-                    onBudgetChange={(subId, monto) => handleBudgetChange(g.key, subId, monto)}
-                    ingresosGrupo={grupoMontos[g.key]}
-                  />
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Categorías que cuentan en {g.label}</p>
+                    {g.categorias.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-border/50 p-4 text-center text-sm text-muted-foreground">
+                        Sin categorías asignadas
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {g.categorias.map((c) => (
+                          <div key={c.id} className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5">
+                            <div
+                              className="flex size-6 shrink-0 items-center justify-center rounded-md text-xs"
+                              style={{ backgroundColor: `${c.color}18`, color: c.color }}
+                            >
+                              {c.icono[0]}
+                            </div>
+                            <span className="min-w-0 flex-1 truncate text-sm">{c.nombre}</span>
+                            <Button variant="ghost" size="icon" className="size-6 text-muted-foreground hover:text-destructive" onClick={() => quitarCategoria(c.id)}>
+                              <Minus className="size-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="pt-1">
+                      <Select value="" onValueChange={(v) => v && asignarCategoria(g.id, Number(v))}>
+                        <SelectTrigger className="h-8 w-full text-xs">
+                          <SelectValue placeholder="Asignar categoría…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {gatosSinGrupo.map((c) => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              <span className="flex items-center gap-1.5">
+                                <span className="inline-block size-2 rounded-full" style={{ backgroundColor: "#6B6B85" }} />
+                                {c.nombre}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {gatosSinGrupo.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground">Todas tus categorías de gasto ya están asignadas.</p>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:migrate:budget-groups": "tsx scripts/migrate-budget-groups.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:seed:excel": "tsx scripts/seed-excel.ts",
     "db:setup": "npm run db:migrate && npm run db:seed"

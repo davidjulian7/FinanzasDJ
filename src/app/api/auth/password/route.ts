@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const actual = String(body.actual ?? "");
   const nueva = String(body.nueva ?? "");
 
-  if (!actual || !nueva) return apiError("Ingresá la contraseña actual y la nueva");
+  if (!actual || !nueva) return apiError("Ingresa la contraseña actual y la nueva");
   if (nueva.length < 8) return apiError("La contraseña debe tener al menos 8 caracteres");
   if (nueva === actual) return apiError("La contraseña nueva debe ser distinta a la actual");
 

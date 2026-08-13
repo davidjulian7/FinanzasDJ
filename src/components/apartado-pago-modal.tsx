@@ -56,7 +56,7 @@ export function ApartadoPagoModal({
     if (!apartado) return;
     const m = Number(monto);
     if (!Number.isFinite(m) || m <= 0) return toast.error("El monto debe ser mayor a cero");
-    if (!accountId) return toast.error("Seleccioná la cuenta de pago");
+    if (!accountId) return toast.error("Selecciona la cuenta de pago");
 
     setLoading(true);
     try {
@@ -114,7 +114,7 @@ export function ApartadoPagoModal({
             <Label htmlFor="ap-cuenta">Cuenta de pago</Label>
             <Select value={accountId} onValueChange={setAccountId}>
               <SelectTrigger id="ap-cuenta">
-                <SelectValue placeholder="Elegí una cuenta" />
+                <SelectValue placeholder="Elige una cuenta" />
               </SelectTrigger>
               <SelectContent>
                 {accounts.map((c) => (

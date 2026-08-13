@@ -110,7 +110,7 @@ export default function DashboardPage() {
                   <FlowChart data={data.flujo} />
                 </ChartCard>
 
-                <ChartCard title="Gasto por cuenta" subtitle="¿Qué tarjeta o cuenta usás más?">
+                <ChartCard title="Gasto por cuenta" subtitle="¿Qué tarjeta o cuenta usas más?">
                   <PerAccountChart data={data.gastosPorCuenta} />
                 </ChartCard>
               </div>

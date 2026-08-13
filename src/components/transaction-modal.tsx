@@ -90,12 +90,12 @@ export function TransactionModal({
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
-    if (!descripcion.trim()) return toast.error("Escribí una descripción");
+    if (!descripcion.trim()) return toast.error("Escribe una descripción");
     const m = Number(monto);
     if (!Number.isFinite(m) || m <= 0) return toast.error("El monto debe ser mayor a cero");
-    if (!accountId) return toast.error("Seleccioná una cuenta");
-    if (tipo === "transferencia" && !accountDestinoId) return toast.error("Seleccioná la cuenta destino");
-    if (tipo !== "transferencia" && !categoryId) return toast.error("Seleccioná una categoría");
+    if (!accountId) return toast.error("Selecciona una cuenta");
+    if (tipo === "transferencia" && !accountDestinoId) return toast.error("Selecciona la cuenta destino");
+    if (tipo !== "transferencia" && !categoryId) return toast.error("Selecciona una categoría");
 
     const body = {
       descripcion,
@@ -152,7 +152,7 @@ export function TransactionModal({
       <DialogContent className="glass max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{tx ? "Editar movimiento" : "Registrar movimiento"}</DialogTitle>
-          <DialogDescription>Ingresá los datos del movimiento.</DialogDescription>
+          <DialogDescription>Ingresa los datos del movimiento.</DialogDescription>
         </DialogHeader>
         <form onSubmit={guardar} className="space-y-4 py-2">
           <Tabs value={tipo} onValueChange={(v) => setTipo(v as TxTipo)} className="w-full">
@@ -186,7 +186,7 @@ export function TransactionModal({
               <Label htmlFor="tx-cuenta">{tipo === "transferencia" ? "Cuenta origen" : "Cuenta"}</Label>
               <Select value={accountId} onValueChange={setAccountId}>
                 <SelectTrigger id="tx-cuenta">
-                  <SelectValue placeholder="Elegí una cuenta" />
+                  <SelectValue placeholder="Elige una cuenta" />
                 </SelectTrigger>
                 <SelectContent>
                   {cuentas.map((c) => (
@@ -202,7 +202,7 @@ export function TransactionModal({
                 <Label htmlFor="tx-destino">Cuenta destino</Label>
                 <Select value={accountDestinoId} onValueChange={setAccountDestinoId}>
                   <SelectTrigger id="tx-destino">
-                    <SelectValue placeholder="Elegí la cuenta destino" />
+                    <SelectValue placeholder="Elige la cuenta destino" />
                   </SelectTrigger>
                   <SelectContent>
                     {cuentas
@@ -220,7 +220,7 @@ export function TransactionModal({
                 <Label htmlFor="tx-categoria">Categoría</Label>
                 <Select value={categoryId} onValueChange={setCategoryId}>
                   <SelectTrigger id="tx-categoria">
-                    <SelectValue placeholder="Elegí una categoría" />
+                    <SelectValue placeholder="Elige una categoría" />
                   </SelectTrigger>
                   <SelectContent>
                     {categoriasFiltradas.map((c) => (

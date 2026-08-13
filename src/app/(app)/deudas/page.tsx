@@ -86,7 +86,7 @@ export default function DebtsPage() {
               <HandCoins className="size-4" /> Debo ({porPagar.length})
             </h2>
             {porPagar.length === 0 ? (
-              <Empty text="No tenés deudas por pagar 🎉" />
+              <Empty text="No tienes deudas por pagar 🎉" />
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {porPagar.map((d) => (
@@ -101,7 +101,7 @@ export default function DebtsPage() {
               <CreditCard className="size-4" /> Compras a meses ({cuotasActivas.length})
             </h2>
             {cuotasActivas.length === 0 ? (
-              <Empty text="No tenés compras a meses activas" />
+              <Empty text="No tienes compras a meses activas" />
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {cuotasActivas.map((c) => (
@@ -148,7 +148,7 @@ export default function DebtsPage() {
         <DialogContent className="glass sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Eliminar deuda</DialogTitle>
-            <DialogDescription>¿Seguro que querés eliminar “{eliminando?.nombre}”?</DialogDescription>
+            <DialogDescription>¿Seguro que quieres eliminar “{eliminando?.nombre}”?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEliminando(null)}>
@@ -329,7 +329,7 @@ function DebtForm({
       <DialogContent className="glass sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{debt ? "Editar deuda" : "Nueva deuda"}</DialogTitle>
-          <DialogDescription>Registrá un préstamo, acreedor o deuda pendiente.</DialogDescription>
+          <DialogDescription>Registra un préstamo, acreedor o deuda pendiente.</DialogDescription>
         </DialogHeader>
         <form onSubmit={guardar} className="space-y-3 py-2">
           <div className="grid grid-cols-2 gap-3">
@@ -392,7 +392,7 @@ function PaymentDialog({ debt, onClose, onDone }: { debt: DebtRow | null; onClos
     e.preventDefault();
     if (!debt) return;
     const m = Number(monto);
-    if (!Number.isFinite(m) || m <= 0) return toast.error("Ingresá un monto válido");
+    if (!Number.isFinite(m) || m <= 0) return toast.error("Ingresa un monto válido");
     if (m > debt.saldoPendiente) return toast.error("El monto supera el saldo pendiente");
     setLoading(true);
     try {
@@ -439,7 +439,7 @@ function PaymentDialog({ debt, onClose, onDone }: { debt: DebtRow | null; onClos
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Si elegís una cuenta, se registrará un movimiento de {esDeuda ? "gasto" : "ingreso"} y se actualizará su saldo.
+              Si eliges una cuenta, se registrará un movimiento de {esDeuda ? "gasto" : "ingreso"} y se actualizará su saldo.
             </p>
           </div>
           <DialogFooter>

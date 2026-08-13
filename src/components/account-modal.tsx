@@ -236,7 +236,7 @@ export function AccountModal({
   }
 
   async function crearCategoria() {
-    if (!catNombre.trim()) return toast.error("Escribí el nombre de la categoría");
+    if (!catNombre.trim()) return toast.error("Escribe el nombre de la categoría");
     setCreandoCat(true);
     try {
       const res = await api.post<{ id: number }>("/api/expense-categories", {
@@ -269,7 +269,7 @@ export function AccountModal({
     if (!cuenta) return;
     const m = Number(movMonto);
     if (!Number.isFinite(m) || m <= 0) return toast.error("El monto debe ser mayor a cero");
-    if (!movCategoria) return toast.error("Seleccioná una categoría");
+    if (!movCategoria) return toast.error("Selecciona una categoría");
     if (movTipo === "gasto") {
       const disp = disponibleDe(cuenta);
       if (disp != null && m > disp + 0.001) {
@@ -306,9 +306,9 @@ export function AccountModal({
     if (!cuenta) return;
     const m = Number(pagoMonto);
     if (!Number.isFinite(m) || m <= 0) return toast.error("El monto debe ser mayor a cero");
-    if (!pagoOrigen) return toast.error("Elegí desde qué cuenta se paga");
+    if (!pagoOrigen) return toast.error("Elige desde qué cuenta se paga");
     const origen = cuentas.find((c) => String(c.id) === pagoOrigen);
-    if (!origen) return toast.error("Seleccioná una cuenta de débito válida");
+    if (!origen) return toast.error("Selecciona una cuenta de débito válida");
     if (origen.tipo === "credito") return toast.error("La cuenta origen debe ser de débito");
     setLoading(true);
     try {
@@ -361,7 +361,7 @@ export function AccountModal({
   async function registrarCompraMeses(e: React.FormEvent) {
     e.preventDefault();
     if (!cuenta) return;
-    if (!mesesDesc.trim()) return toast.error("Escribí una descripción de la compra");
+    if (!mesesDesc.trim()) return toast.error("Escribe una descripción de la compra");
     const monto = Number(mesesMonto);
     if (!Number.isFinite(monto) || monto <= 0) return toast.error("El monto debe ser mayor a cero");
     const meses = Number(mesesCant);
@@ -393,7 +393,7 @@ export function AccountModal({
   }
 
   async function pagarCuotaPlan(id: number) {
-    if (!cuenta || !pagoOrigen) return toast.error("Elegí desde qué cuenta se paga");
+    if (!cuenta || !pagoOrigen) return toast.error("Elige desde qué cuenta se paga");
     setPagandoCuotaId(id);
     try {
       await api.patch(`/api/cuotas/${id}`, { cuentaPagoId: Number(pagoOrigen) });
@@ -431,7 +431,7 @@ export function AccountModal({
         <DialogContent className="glass max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Agregar cuenta</DialogTitle>
-            <DialogDescription>Configurá los datos de la cuenta.</DialogDescription>
+            <DialogDescription>Configura los datos de la cuenta.</DialogDescription>
           </DialogHeader>
           <form onSubmit={guardarCuenta} className="space-y-4 py-2">
             <CamposCuenta
@@ -620,7 +620,7 @@ export function AccountModal({
                     <Label>Se paga desde</Label>
                     <Select value={pagoOrigen} onValueChange={setPagoOrigen}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Elegí la cuenta de débito" />
+                        <SelectValue placeholder="Elige la cuenta de débito" />
                       </SelectTrigger>
                       <SelectContent>
                         {cuentasDebito.map((c) => (
@@ -894,7 +894,7 @@ function CamposCuenta({
         />
         {tipo === "credito" && disponiblePrev != null && disponiblePrev > 0 && (
           <p className="col-span-2 text-xs text-muted-foreground">
-            Tu disponible actual es {formatCurrency(disponiblePrev)}. Si dejás la deuda en blanco y cargás el límite, se
+            Tu disponible actual es {formatCurrency(disponiblePrev)}. Si dejas la deuda en blanco y cargas el límite, se
             calcula automáticamente la deuda real (límite − {formatCurrency(disponiblePrev)}).
           </p>
         )}
@@ -1082,7 +1082,7 @@ function MovimientoForm({
               <div className="flex-1">
                 <Select value={categoria} onValueChange={setCategoria}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Elegí una categoría" />
+                    <SelectValue placeholder="Elige una categoría" />
                   </SelectTrigger>
                   <SelectContent>
                     {categorias.length === 0 && <SelectItem value="sin-cats">Sin categorías de {tipo}</SelectItem>}

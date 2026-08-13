@@ -125,7 +125,7 @@ export default function AccountsPage() {
           <DialogHeader>
             <DialogTitle>Eliminar cuenta</DialogTitle>
             <DialogDescription>
-              ¿Seguro que querés eliminar “{eliminando?.nombre}”? Si tiene movimientos asociados no se podrá eliminar.
+              ¿Seguro que quieres eliminar “{eliminando?.nombre}”? Si tiene movimientos asociados no se podrá eliminar.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

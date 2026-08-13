@@ -62,6 +62,32 @@ const debtDefs = [
   { nombre: "Préstamo a Julián", tipo: "por_cobrar" as const, personaOAcreedor: "Julián", montoOriginal: 80000, saldoPendiente: 35000, offsetInicio: 40 },
 ];
 
+export async function seedCategoriesForUser(userId: string) {
+  const existing = await db
+    .select({ id: expenseCategories.id })
+    .from(expenseCategories)
+    .where(eq(expenseCategories.userId, userId))
+    .execute();
+  if (existing.length > 0) return;
+
+  const grupos = await db.select().from(budgetGroups).execute();
+  const groupByKey = new Map(grupos.map((g) => [g.key, g.id]));
+  await db
+    .insert(expenseCategories)
+    .values(
+      categoryDefs.map((c) => ({
+        userId,
+        nombre: c.nombre,
+        tipo: c.tipo,
+        icono: c.icono,
+        color: c.color,
+        budgetGroupId: c.grupo ? (groupByKey.get(c.grupo) ?? null) : null,
+        activo: true,
+      })),
+    )
+    .execute();
+}
+
 export async function seedBudgetGroups() {
   const existing = await db.select({ id: budgetGroups.id }).from(budgetGroups).execute();
   if (existing.length > 0) return;

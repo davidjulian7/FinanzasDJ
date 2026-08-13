@@ -75,7 +75,7 @@ export function AccountCard({
         </p>
         {saldoNeg && (
           <p className="text-xs text-muted-foreground">
-            Disponible: {formatCurrency(aFavor)} · cargá el límite para ver tu deuda real (límite − disponible)
+            Disponible: {formatCurrency(aFavor)} · carga el límite para ver tu deuda real (límite − disponible)
           </p>
         )}
       </div>

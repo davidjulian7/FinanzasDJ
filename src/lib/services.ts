@@ -66,7 +66,7 @@ function validar(input: TxInput) {
   if (!Number.isFinite(input.monto) || input.monto <= 0) throw new Error("El monto debe ser mayor a cero");
   if (!input.fecha) throw new Error("La fecha es obligatoria");
   if (input.tipo === "transferencia") {
-    if (!input.accountDestinoId) throw new Error("Seleccioná la cuenta destino");
+    if (!input.accountDestinoId) throw new Error("Selecciona la cuenta destino");
     if (input.accountDestinoId === input.accountId) throw new Error("La cuenta destino no puede ser la misma");
   }
 }

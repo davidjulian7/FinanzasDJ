@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await req.json();
     const cuentaPagoId = body?.cuentaPagoId ? Number(body.cuentaPagoId) : null;
-    if (!cuentaPagoId) throw new Error("Seleccioná la cuenta desde la que se paga la cuota");
+    if (!cuentaPagoId) throw new Error("Selecciona la cuenta desde la que se paga la cuota");
     const res = await pagarCuota(user.id, Number(id), cuentaPagoId);
     return NextResponse.json(res);
   } catch (e) {

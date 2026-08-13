@@ -277,7 +277,7 @@ export default function TransactionsPage() {
           <DialogHeader>
             <DialogTitle>Eliminar movimiento</DialogTitle>
             <DialogDescription>
-              ¿Seguro que querés eliminar “{eliminando?.descripcion}” por {eliminando ? formatCurrency(eliminando.monto) : ""}? Esta acción no se puede deshacer.
+              ¿Seguro que quieres eliminar “{eliminando?.descripcion}” por {eliminando ? formatCurrency(eliminando.monto) : ""}? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -47,7 +47,7 @@ export default function ConfiguracionPage() {
 
   async function cambiarPassword() {
     if (!actual || !nueva || !confirmar) {
-      toast.error("Completá todos los campos");
+      toast.error("Completa todos los campos");
       return;
     }
     if (nueva !== confirmar) {
@@ -102,7 +102,7 @@ export default function ConfiguracionPage() {
             <CardTitle className="flex items-center gap-2">
               <KeyRound className="size-4 text-primary" /> Contraseña
             </CardTitle>
-            <CardDescription>Cambiá tu contraseña de acceso</CardDescription>
+            <CardDescription>Cambia tu contraseña de acceso</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">

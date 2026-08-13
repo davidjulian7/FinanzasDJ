@@ -9,7 +9,7 @@ const globalForDb = globalThis as unknown as {
 function createConnection(): ReturnType<typeof postgres> {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    throw new Error("DATABASE_URL no está definida. Configurala en .env.local (ver .env.example).");
+    throw new Error("DATABASE_URL no está definida. Configúrala en .env.local (ver .env.example).");
   }
   return postgres(url, { max: 10, prepare: false });
 }

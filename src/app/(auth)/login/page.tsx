@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, Lock, Wallet } from "lucide-react";
+import { Mail, Lock, Wallet, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/lib/api";
@@ -11,9 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+type Mode = "login" | "register";
+
 export default function LoginPage() {
+  const [mode, setMode] = useState<Mode>("login");
+  const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
@@ -23,10 +28,15 @@ export default function LoginPage() {
     if (user) router.replace("/dashboard");
   }, [user, router]);
 
+  function cambiarModo(next: Mode) {
+    setMode(next);
+    setLoading(false);
+  }
+
   async function ingresar(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim() || !password) {
-      toast.error("Ingresá tu correo y contraseña");
+      toast.error("Ingresa tu correo y contraseña");
       return;
     }
     setLoading(true);
@@ -39,6 +49,41 @@ export default function LoginPage() {
       router.replace("/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function registrar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nombre.trim() || !email.trim() || !password) {
+      toast.error("Completa todos los campos");
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post<{ user: { id: string; nombre: string; email: string } }>("/api/auth/register", {
+        nombre,
+        email,
+        password,
+      });
+      toast.success("Perfil creado. ¡Bienvenido!");
+      const loginRes = await api.post<{ user: { id: string; nombre: string; email: string } }>("/api/auth/login", {
+        email,
+        password,
+      });
+      setUser(loginRes.user);
+      router.replace("/dashboard");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo crear el perfil");
     } finally {
       setLoading(false);
     }
@@ -60,45 +105,143 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">FinanzasDJ</h1>
-            <p className="text-sm text-muted-foreground">Ingresá con tu correo y contraseña</p>
+            <p className="text-sm text-muted-foreground">
+              {mode === "login" ? "Ingresa con tu correo y contraseña" : "Crea tu perfil para empezar"}
+            </p>
           </div>
         </div>
-        <form onSubmit={ingresar} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Correo electrónico</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                autoFocus
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tucorreo@ejemplo.com"
-                className="pl-9"
-              />
+
+        {mode === "login" ? (
+          <form onSubmit={ingresar} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tucorreo@ejemplo.com"
+                  className="pl-9"
+                />
+              </div>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="pl-9"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="pl-9"
+                />
+              </div>
             </div>
-          </div>
-          <Button type="submit" className="btn-gradient w-full py-5 text-base" disabled={loading}>
-            {loading ? "Ingresando…" : "Ingresar"}
-          </Button>
-        </form>
+            <Button type="submit" className="btn-gradient w-full py-5 text-base" disabled={loading}>
+              {loading ? "Ingresando…" : "Ingresar"}
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={registrar} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nombre">Nombre</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="nombre"
+                  type="text"
+                  autoComplete="name"
+                  autoFocus
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Cómo quieres que te digamos"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email-registro">Correo electrónico</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="email-registro"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tucorreo@ejemplo.com"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password-registro">Contraseña</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="password-registro"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password-confirm">Repite la contraseña</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="password-confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <Button type="submit" className="btn-gradient w-full py-5 text-base" disabled={loading}>
+              {loading ? "Creando…" : "Crear perfil"}
+            </Button>
+          </form>
+        )}
+
+        <div className="mt-6 text-center text-sm">
+          {mode === "login" ? (
+            <>
+              ¿No tienes perfil?{" "}
+              <button
+                type="button"
+                onClick={() => cambiarModo("register")}
+                className="font-semibold text-brand hover:underline"
+              >
+                Crea uno gratis
+              </button>
+            </>
+          ) : (
+            <>
+              ¿Ya tienes perfil?{" "}
+              <button
+                type="button"
+                onClick={() => cambiarModo("login")}
+                className="font-semibold text-brand hover:underline"
+              >
+                Inicia sesión
+              </button>
+            </>
+          )}
+        </div>
       </motion.div>
     </div>
   );

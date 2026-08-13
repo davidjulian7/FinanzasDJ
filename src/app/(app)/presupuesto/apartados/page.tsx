@@ -154,7 +154,7 @@ export default function ApartadosPage() {
 
       {apartados.length === 0 ? (
         <div className="glass rounded-2xl border border-border py-14 text-center text-sm text-muted-foreground">
-          No hay apartados todavía. Creá uno para empezar a reservar hacia tu próximo pago.
+          No hay apartados todavía. Crea uno para empezar a reservar hacia tu próximo pago.
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

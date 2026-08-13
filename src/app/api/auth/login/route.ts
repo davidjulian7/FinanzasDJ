@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const password = String(body.password ?? "");
 
   if (!email || !password) {
-    return apiError("Ingresá tu correo y contraseña");
+    return apiError("Ingresa tu correo y contraseña");
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return apiError("Correo inválido");
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const prev = intentos.get(email);
   if (prev && prev.hasta > ahora) {
     const seg = Math.ceil((prev.hasta - ahora) / 1000);
-    return NextResponse.json({ error: `Demasiados intentos. Intentá de nuevo en ${seg}s` }, { status: 429 });
+    return NextResponse.json({ error: `Demasiados intentos. Intenta de nuevo en ${seg}s` }, { status: 429 });
   }
 
   const supabase = await createServerSupabaseClient();

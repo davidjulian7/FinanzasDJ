@@ -9,7 +9,7 @@ import path from "node:path";
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    console.error("DATABASE_URL no está definida. Configurala en .env.local (ver .env.example).");
+    console.error("DATABASE_URL no está definida. Configúrala en .env.local (ver .env.example).");
     process.exit(1);
   }
   const client = postgres(url, { max: 1, prepare: false });

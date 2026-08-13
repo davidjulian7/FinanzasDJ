@@ -134,15 +134,15 @@ export function ApartadoForm({
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.nombre.trim()) return toast.error("Escribí un nombre");
+    if (!form.nombre.trim()) return toast.error("Escribe un nombre");
     if (!Number.isFinite(objetivo) || objetivo <= 0) return toast.error("El monto objetivo debe ser mayor a cero");
     const dia = Number(form.diaPago);
     if (!Number.isInteger(dia) || dia < 1 || dia > 31) return toast.error("El día de pago debe ser entre 1 y 31");
     if (form.periodicidad === "anual") {
       const m = Number(form.mesPago);
-      if (!Number.isInteger(m) || m < 1 || m > 12) return toast.error("Elegí el mes de pago");
+      if (!Number.isInteger(m) || m < 1 || m > 12) return toast.error("Elige el mes de pago");
     }
-    if (!form.budgetGroupId) return toast.error("Elegí el grupo de presupuesto");
+    if (!form.budgetGroupId) return toast.error("Elige el grupo de presupuesto");
 
     const body = {
       nombre: form.nombre,
@@ -188,7 +188,7 @@ export function ApartadoForm({
         <DialogHeader>
           <DialogTitle>{initialData ? "Editar apartado" : "Nuevo apartado"}</DialogTitle>
           <DialogDescription>
-            Definí un plan de reserva quincenal hacia un pago mensual o anual. No mueve dinero: solo aparta del
+            Define un plan de reserva quincenal hacia un pago mensual o anual. No mueve dinero: solo aparta del
             presupuesto de la quincena.
           </DialogDescription>
         </DialogHeader>
@@ -206,7 +206,7 @@ export function ApartadoForm({
               <Label>Periodicidad del pago *</Label>
               <Select value={form.periodicidad} onValueChange={(v) => set("periodicidad", v as ApartadoPeriodicidad)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Elegí periodicidad" />
+                  <SelectValue placeholder="Elige periodicidad" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="mensual">Mensual (2 quincenas)</SelectItem>
@@ -223,7 +223,7 @@ export function ApartadoForm({
                 <Label>Mes de pago *</Label>
                 <Select value={form.mesPago} onValueChange={(v) => set("mesPago", v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Elegí mes" />
+                    <SelectValue placeholder="Elige mes" />
                   </SelectTrigger>
                   <SelectContent>
                     {MESES.map((m, i) => (
@@ -241,7 +241,7 @@ export function ApartadoForm({
             <Label>Grupo (50/30/20) *</Label>
             <Select value={form.budgetGroupId} onValueChange={(v) => set("budgetGroupId", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Elegí grupo" />
+                <SelectValue placeholder="Elige grupo" />
               </SelectTrigger>
               <SelectContent>
                 {groups.map((g) => (
@@ -276,7 +276,7 @@ export function ApartadoForm({
                     quincena ({formatCurrency(objetivo)} / {quincenasCiclo} quincenas).
                   </>
                 ) : (
-                  "Completá el monto objetivo para calcular la cuota sugerida."
+                  "Completa el monto objetivo para calcular la cuota sugerida."
                 )}
               </p>
             )}
@@ -286,7 +286,7 @@ export function ApartadoForm({
             <Label>Categoría de gasto (para el pago)</Label>
             <Select value={form.categoriaId} onValueChange={(v) => set("categoriaId", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Elegí categoría (opcional)" />
+                <SelectValue placeholder="Elige categoría (opcional)" />
               </SelectTrigger>
               <SelectContent>
                 {categoriasGasto.map((c) => (
@@ -302,7 +302,7 @@ export function ApartadoForm({
             <Label>Cuenta de pago</Label>
             <Select value={form.cuentaId} onValueChange={(v) => set("cuentaId", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Elegí cuenta (opcional)" />
+                <SelectValue placeholder="Elige cuenta (opcional)" />
               </SelectTrigger>
               <SelectContent>
                 {accounts.map((c) => (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Lock, Wallet } from "lucide-react";
+import { Mail, Lock, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/lib/api";
@@ -12,34 +12,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const authed = useAuthStore((s) => s.authed);
-  const setAuthed = useAuthStore((s) => s.setAuthed);
+  const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
 
   useEffect(() => {
-    if (authed) router.replace("/dashboard");
-  }, [authed, router]);
+    if (user) router.replace("/dashboard");
+  }, [user, router]);
 
   async function ingresar(e: React.FormEvent) {
     e.preventDefault();
-    if (!/^\d{4,6}$/.test(pin)) {
-      toast.error("El PIN debe tener entre 4 y 6 dígitos");
+    if (!email.trim() || !password) {
+      toast.error("Ingresá tu correo y contraseña");
       return;
     }
     setLoading(true);
     try {
-      const res = await api.post<{ ok: boolean }>("/api/auth/verify", { pin });
-      if (res.ok) {
-        setAuthed(true);
-        router.replace("/dashboard");
-      } else {
-        toast.error("PIN incorrecto");
-        setPin("");
-      }
-    } catch {
-      toast.error("No se pudo verificar el PIN");
+      const res = await api.post<{ user: { id: number; nombre: string; email: string } }>("/api/auth/login", {
+        email,
+        password,
+      });
+      setUser(res.user);
+      router.replace("/dashboard");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo iniciar sesión");
     } finally {
       setLoading(false);
     }
@@ -61,32 +60,45 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">FinanzasDJ</h1>
-            <p className="text-sm text-muted-foreground">Ingresá tu PIN para acceder</p>
+            <p className="text-sm text-muted-foreground">Ingresá con tu correo y contraseña</p>
           </div>
         </div>
         <form onSubmit={ingresar} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="pin">PIN de acceso</Label>
+            <Label htmlFor="email">Correo electrónico</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tucorreo@ejemplo.com"
+                className="pl-9"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Contraseña</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                id="pin"
+                id="password"
                 type="password"
-                inputMode="numeric"
-                autoFocus
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-                placeholder="••••"
-                className="pl-9 text-center font-mono text-lg tracking-[0.5em]"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="pl-9"
               />
             </div>
           </div>
           <Button type="submit" className="btn-gradient w-full py-5 text-base" disabled={loading}>
-            {loading ? "Verificando…" : "Ingresar"}
+            {loading ? "Ingresando…" : "Ingresar"}
           </Button>
         </form>
-        <p className="mt-6 text-center text-xs text-muted-foreground">PIN por defecto: 1234 · podés cambiarlo desde el menú de cuenta</p>
       </motion.div>
     </div>
   );

@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { budgetGroups, expenseCategories, recurringExpenses, settings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { apiError, handleError } from "@/lib/api-server";
+import { and, eq } from "drizzle-orm";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 import { getReglaPct, getIngresoQuincena, ingresoKey, type ReglaPct } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const user = await requireUser();
+  if (!user) return unauthorized();
   const { searchParams } = new URL(req.url);
   const mes = Number(searchParams.get("mes"));
   const anio = Number(searchParams.get("anio"));
@@ -18,8 +21,16 @@ export async function GET(req: NextRequest) {
   }
 
   const groups = db.select().from(budgetGroups).all();
-  const expCats = db.select().from(expenseCategories).where(eq(expenseCategories.activo, true)).all();
-  const recurrents = db.select().from(recurringExpenses).where(eq(recurringExpenses.activo, true)).all();
+  const expCats = db
+    .select()
+    .from(expenseCategories)
+    .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
+    .all();
+  const recurrents = db
+    .select()
+    .from(recurringExpenses)
+    .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
+    .all();
 
   const catsByGroup = new Map<number, typeof expCats>();
   for (const c of expCats) {
@@ -36,8 +47,8 @@ export async function GET(req: NextRequest) {
     recurrentByGroup.set(r.budgetGroupId, arr);
   }
 
-  const regla = getReglaPct();
-  const ingresosQuincena = getIngresoQuincena(anio, mes, quincena);
+  const regla = getReglaPct(user.id);
+  const ingresosQuincena = getIngresoQuincena(user.id, anio, mes, quincena);
 
   const groupsWithData = groups.map((g) => ({
     ...g,
@@ -60,6 +71,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const body = await req.json();
     const { mes, anio, quincena, ingresosQuincena, regla } = body;
 
@@ -81,14 +94,14 @@ export async function POST(req: NextRequest) {
     db.transaction((tx) => {
       if (ingresosQuincena > 0) {
         tx.insert(settings)
-          .values({ key: ingresoKey(anio, mes, quincena), value: JSON.stringify(ingresosQuincena) })
-          .onConflictDoUpdate({ target: settings.key, set: { value: JSON.stringify(ingresosQuincena) } })
+          .values({ userId: user.id, key: ingresoKey(anio, mes, quincena), value: JSON.stringify(ingresosQuincena) })
+          .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(ingresosQuincena) } })
           .run();
       }
 
       tx.insert(settings)
-        .values({ key: "regla_pct", value: JSON.stringify(reglaData) })
-        .onConflictDoUpdate({ target: settings.key, set: { value: JSON.stringify(reglaData) } })
+        .values({ userId: user.id, key: "regla_pct", value: JSON.stringify(reglaData) })
+        .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(reglaData) } })
         .run();
     });
 

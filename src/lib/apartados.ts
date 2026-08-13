@@ -52,11 +52,11 @@ export function cuotaEfectiva(a: {
 }
 
 // Último pago real del apartado (fecha de la transacción más reciente vinculada).
-export function ultimoPagoDe(apartadoId: number): string | null {
+export function ultimoPagoDe(userId: number, apartadoId: number): string | null {
   const row = db
     .select({ fecha: transactions.fecha })
     .from(transactions)
-    .where(eq(transactions.apartadoId, apartadoId))
+    .where(and(eq(transactions.apartadoId, apartadoId), eq(transactions.userId, userId)))
     .orderBy(desc(transactions.fecha), desc(transactions.id))
     .all()[0];
   return row?.fecha ?? null;
@@ -67,11 +67,11 @@ function quincenaFin(anio: number, mes: number, quincena: number): string {
 }
 
 // Total apartado desde el inicio del ciclo actual (último pago, o fecha de creación).
-export function juntadoEnCiclo(apartadoId: number, inicioCiclo: string): number {
+export function juntadoEnCiclo(userId: number, apartadoId: number, inicioCiclo: string): number {
   const rows = db
     .select({ monto: apartadoContribuciones.monto, anio: apartadoContribuciones.anio, mes: apartadoContribuciones.mes, quincena: apartadoContribuciones.quincena })
     .from(apartadoContribuciones)
-    .where(eq(apartadoContribuciones.apartadoId, apartadoId))
+    .where(and(eq(apartadoContribuciones.apartadoId, apartadoId), eq(apartadoContribuciones.userId, userId)))
     .all();
   let total = 0;
   for (const c of rows) {
@@ -93,7 +93,7 @@ export interface CicloInfo {
   estado: ApartadoEstado;
 }
 
-export function cicloInfo(a: {
+export function cicloInfo(userId: number, a: {
   id: number;
   montoObjetivo: number;
   periodicidad: "mensual" | "anual";
@@ -102,10 +102,10 @@ export function cicloInfo(a: {
   montoQuincena: number | null;
   fechaInicio: string;
 }): CicloInfo {
-  const ultimoPago = ultimoPagoDe(a.id);
+  const ultimoPago = ultimoPagoDe(userId, a.id);
   const inicioCiclo = ultimoPago ?? a.fechaInicio;
   const vencimiento = proximoVencimiento(a, inicioCiclo);
-  const juntado = juntadoEnCiclo(a.id, inicioCiclo);
+  const juntado = juntadoEnCiclo(userId, a.id, inicioCiclo);
   const hoy = todayISO();
   const objetivo = a.montoObjetivo;
 
@@ -134,12 +134,12 @@ function grupoDe(id: number | null): BudgetGroupRow | null {
   return GROUP_CACHE.get(id) ?? null;
 }
 
-export function cargarApartados(): ApartadoRow[] {
-  const rows = db.select().from(apartados).orderBy(apartados.orden, apartados.nombre).all();
+export function cargarApartados(userId: number): ApartadoRow[] {
+  const rows = db.select().from(apartados).where(eq(apartados.userId, userId)).orderBy(apartados.orden, apartados.nombre).all();
 
-  const cats = db.select().from(expenseCategories).all();
+  const cats = db.select().from(expenseCategories).where(eq(expenseCategories.userId, userId)).all();
   const catById = new Map(cats.map((c) => [c.id, c]));
-  const accs = db.select().from(accounts).all();
+  const accs = db.select().from(accounts).where(eq(accounts.userId, userId)).all();
   const accById = new Map(accs.map((a) => [a.id, a]));
 
   const hoy = new Date();
@@ -148,8 +148,8 @@ export function cargarApartados(): ApartadoRow[] {
   const quincena = hoy.getDate() <= 15 ? 1 : 2;
 
   return rows.map((a) => {
-    const info = cicloInfo(a);
-    const contrib = contribucionQuincena(a.id, anio, mes, quincena);
+    const info = cicloInfo(userId, a);
+    const contrib = contribucionQuincena(userId, a.id, anio, mes, quincena);
     const cat = a.categoriaId ? catById.get(a.categoriaId) : undefined;
     return {
       ...a,
@@ -167,13 +167,14 @@ export function cargarApartados(): ApartadoRow[] {
   });
 }
 
-export function contribucionQuincena(apartadoId: number, anio: number, mes: number, quincena: number) {
+export function contribucionQuincena(userId: number, apartadoId: number, anio: number, mes: number, quincena: number) {
   return db
     .select({ monto: apartadoContribuciones.monto })
     .from(apartadoContribuciones)
     .where(
       and(
         eq(apartadoContribuciones.apartadoId, apartadoId),
+        eq(apartadoContribuciones.userId, userId),
         eq(apartadoContribuciones.anio, anio),
         eq(apartadoContribuciones.mes, mes),
         eq(apartadoContribuciones.quincena, quincena)
@@ -182,9 +183,9 @@ export function contribucionQuincena(apartadoId: number, anio: number, mes: numb
     .all()[0]?.monto ?? 0;
 }
 
-export function registrarContribucion(apartadoId: number, anio: number, mes: number, quincena: number, monto: number) {
+export function registrarContribucion(userId: number, apartadoId: number, anio: number, mes: number, quincena: number, monto: number) {
   db.insert(apartadoContribuciones)
-    .values({ apartadoId, anio, mes, quincena, monto, fecha: todayISO() })
+    .values({ userId, apartadoId, anio, mes, quincena, monto, fecha: todayISO() })
     .onConflictDoUpdate({
       target: [apartadoContribuciones.apartadoId, apartadoContribuciones.anio, apartadoContribuciones.mes, apartadoContribuciones.quincena],
       set: { monto },
@@ -192,11 +193,12 @@ export function registrarContribucion(apartadoId: number, anio: number, mes: num
     .run();
 }
 
-export function quitarContribucion(apartadoId: number, anio: number, mes: number, quincena: number) {
+export function quitarContribucion(userId: number, apartadoId: number, anio: number, mes: number, quincena: number) {
   db.delete(apartadoContribuciones)
     .where(
       and(
         eq(apartadoContribuciones.apartadoId, apartadoId),
+        eq(apartadoContribuciones.userId, userId),
         eq(apartadoContribuciones.anio, anio),
         eq(apartadoContribuciones.mes, mes),
         eq(apartadoContribuciones.quincena, quincena)

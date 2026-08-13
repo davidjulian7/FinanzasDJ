@@ -1,7 +1,20 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
+
+export const users = sqliteTable(
+  "users",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    nombre: text("nombre").notNull(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("uq_users_email").on(t.email)]
+);
 
 export const accounts = sqliteTable("accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").references(() => users.id),
   nombre: text("nombre").notNull(),
   tipo: text("tipo", { enum: ["debito", "credito", "efectivo", "inversion"] }).notNull(),
   saldoActual: real("saldo_actual").notNull().default(0),
@@ -24,6 +37,7 @@ export const budgetGroups = sqliteTable("budget_groups", {
 
 export const expenseCategories = sqliteTable("expense_categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").references(() => users.id),
   nombre: text("nombre").notNull(),
   icono: text("icono").notNull().default("Tag"),
   color: text("color").notNull().default("#7C3AED"),
@@ -34,6 +48,7 @@ export const expenseCategories = sqliteTable("expense_categories", {
 
 export const recurringExpenses = sqliteTable("recurring_expenses", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").references(() => users.id),
   nombre: text("nombre").notNull(),
   monto: real("monto").notNull(),
   frecuencia: text("frecuencia", { enum: ["semanal", "quincenal", "mensual", "anual"] }).notNull(),
@@ -55,6 +70,7 @@ export const transactions = sqliteTable(
   "transactions",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").references(() => users.id),
     descripcion: text("descripcion").notNull(),
     monto: real("monto").notNull(),
     tipo: text("tipo", { enum: ["gasto", "ingreso", "transferencia"] }).notNull(),
@@ -80,6 +96,7 @@ export const apartados = sqliteTable(
   "apartados",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").references(() => users.id),
     nombre: text("nombre").notNull(),
     montoObjetivo: real("monto_objetivo").notNull(),
     montoQuincena: real("monto_quincena"),
@@ -103,6 +120,7 @@ export const apartadoContribuciones = sqliteTable(
   "apartado_contribuciones",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").references(() => users.id),
     apartadoId: integer("apartado_id")
       .notNull()
       .references(() => apartados.id, { onDelete: "cascade" }),
@@ -120,6 +138,7 @@ export const apartadoContribuciones = sqliteTable(
 
 export const debts = sqliteTable("debts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").references(() => users.id),
   nombre: text("nombre").notNull(),
   tipo: text("tipo", { enum: ["por_pagar", "por_cobrar"] }).notNull(),
   personaOAcreedor: text("persona_o_acreedor").notNull(),
@@ -132,6 +151,7 @@ export const cuotas = sqliteTable(
   "cuotas",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").references(() => users.id),
     accountId: integer("account_id")
       .notNull()
       .references(() => accounts.id),
@@ -150,10 +170,18 @@ export const cuotas = sqliteTable(
   (t) => [index("idx_cuotas_account").on(t.accountId)]
 );
 
-export const settings = sqliteTable("settings", {
-  key: text("key").primaryKey(),
-  value: text("value").notNull(),
-});
+export const settings = sqliteTable(
+  "settings",
+  {
+    userId: integer("user_id").references(() => users.id),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })]
+);
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;

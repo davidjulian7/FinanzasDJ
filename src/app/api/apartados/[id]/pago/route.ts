@@ -1,24 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { apartados } from "@/lib/db/schema";
-import { apiError, handleError } from "@/lib/api-server";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 import { crearTransaccion } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const { id } = await params;
     const apartadoId = Number(id);
-    const apartado = db.select().from(apartados).where(eq(apartados.id, apartadoId)).get();
+    const apartado = db
+      .select()
+      .from(apartados)
+      .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
+      .get();
     if (!apartado) return apiError("Apartado no encontrado", 404);
 
     const body = await req.json();
     const monto = Number(body.monto);
     if (!Number.isFinite(monto) || monto <= 0) return apiError("El monto debe ser mayor a cero");
 
-    const result = crearTransaccion({
+    const result = crearTransaccion(user.id, {
       descripcion: body.descripcion?.trim() || `Pago: ${apartado.nombre}`,
       monto,
       tipo: "gasto",

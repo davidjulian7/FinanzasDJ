@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apartados, budgetGroups, expenseCategories, recurringExpenses, transactions } from "@/lib/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { apiError, handleError } from "@/lib/api-server";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 import { getReglaPct, getIngresoQuincena, type ReglaPct } from "@/lib/settings";
 import { quincenaRango } from "@/lib/ranges";
 import { cicloInfo, cuotaEfectiva, contribucionQuincena } from "@/lib/apartados";
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const { searchParams } = new URL(req.url);
     const mes = Number(searchParams.get("mes"));
     const anio = Number(searchParams.get("anio"));
@@ -21,16 +24,35 @@ export async function GET(req: NextRequest) {
     }
 
     const groups = db.select().from(budgetGroups).all();
-    const expCats = db.select().from(expenseCategories).where(eq(expenseCategories.activo, true)).all();
-    const recurrents = db.select().from(recurringExpenses).where(eq(recurringExpenses.activo, true)).all();
-    const allApartados = db.select().from(apartados).orderBy(apartados.orden, apartados.nombre).all();
+    const expCats = db
+      .select()
+      .from(expenseCategories)
+      .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
+      .all();
+    const recurrents = db
+      .select()
+      .from(recurringExpenses)
+      .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
+      .all();
+    const allApartados = db
+      .select()
+      .from(apartados)
+      .where(eq(apartados.userId, user.id))
+      .orderBy(apartados.orden, apartados.nombre)
+      .all();
     const activos = allApartados.filter((a) => a.activo);
 
     const range = quincenaRango(anio, mes, quincena);
     const txs = db
       .select()
       .from(transactions)
-      .where(and(gte(transactions.fecha, range.from), lte(transactions.fecha, range.to)))
+      .where(
+        and(
+          eq(transactions.userId, user.id),
+          gte(transactions.fecha, range.from),
+          lte(transactions.fecha, range.to)
+        )
+      )
       .all();
 
     // Gasto real que cuenta contra el grupo: sin apartado vinculado.
@@ -64,8 +86,8 @@ export async function GET(req: NextRequest) {
       apartadosByGroup.set(a.budgetGroupId, arr);
     }
 
-    const regla: ReglaPct = getReglaPct();
-    const ingresosQuincena = getIngresoQuincena(anio, mes, quincena);
+    const regla: ReglaPct = getReglaPct(user.id);
+    const ingresosQuincena = getIngresoQuincena(user.id, anio, mes, quincena);
 
     const groupsWithData = groups.map((g) => {
       const groupCats = catsByGroup.get(g.id) ?? [];
@@ -74,7 +96,7 @@ export async function GET(req: NextRequest) {
 
       const apartadosDelGrupo = apartadosByGroup.get(g.id) ?? [];
       const pendientes = apartadosDelGrupo.map((a) => {
-        const contrib = contribucionQuincena(a.id, anio, mes, quincena);
+        const contrib = contribucionQuincena(user.id, a.id, anio, mes, quincena);
         return {
           id: a.id,
           nombre: a.nombre,
@@ -110,7 +132,7 @@ export async function GET(req: NextRequest) {
 
     const apartadosListos = activos
       .map((a) => {
-        const info = cicloInfo(a);
+        const info = cicloInfo(user.id, a);
         return { a, info };
       })
       .filter(({ info }) => info.estado === "listo")

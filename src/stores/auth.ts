@@ -3,18 +3,24 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface AuthUser {
+  id: number;
+  nombre: string;
+  email: string;
+}
+
 interface AuthState {
-  authed: boolean;
-  setAuthed: (value: boolean) => void;
+  user: AuthUser | null;
+  setUser: (user: AuthUser) => void;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      authed: false,
-      setAuthed: (value) => set({ authed: value }),
-      logout: () => set({ authed: false }),
+      user: null,
+      setUser: (user) => set({ user }),
+      logout: () => set({ user: null }),
     }),
     { name: "finanzas-auth" }
   )

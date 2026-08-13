@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apartados } from "@/lib/db/schema";
 import { cargarApartados } from "@/lib/apartados";
-import { apiError, handleError } from "@/lib/api-server";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 import { todayISO } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    return NextResponse.json(cargarApartados());
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    return NextResponse.json(cargarApartados(user.id));
   } catch (e) {
     return handleError(e);
   }
@@ -17,6 +20,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const body = await req.json();
     const {
       nombre,
@@ -54,6 +59,7 @@ export async function POST(req: NextRequest) {
     const result = db
       .insert(apartados)
       .values({
+        userId: user.id,
         nombre: nombre.trim(),
         montoObjetivo: Math.round(objetivo * 100) / 100,
         montoQuincena: fija,

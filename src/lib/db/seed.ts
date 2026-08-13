@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "./index";
-import { accounts, budgetGroups, debts, expenseCategories, settings, transactions } from "./schema";
+import { accounts, budgetGroups, debts, expenseCategories, transactions } from "./schema";
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -62,7 +62,7 @@ const debtDefs = [
   { nombre: "Préstamo a Julián", tipo: "por_cobrar" as const, personaOAcreedor: "Julián", montoOriginal: 80000, saldoPendiente: 35000, offsetInicio: 40 },
 ];
 
-export function seedDatabase() {
+export function seedDatabase(userId?: number) {
   const existing = db.select({ id: accounts.id }).from(accounts).all();
   if (existing.length > 0) return { seeded: false, transactions: 0 };
 
@@ -72,7 +72,7 @@ export function seedDatabase() {
   const balances: Record<string, number> = {};
   const insertedAccounts = db
     .insert(accounts)
-    .values(accountDefs.map((a) => ({ ...a, saldoActual: a.saldoInicial })))
+    .values(accountDefs.map((a) => ({ ...a, userId: userId ?? null, saldoActual: a.saldoInicial })))
     .returning({ id: accounts.id, nombre: accounts.nombre, tipo: accounts.tipo })
     .all();
   for (const a of insertedAccounts) {
@@ -88,6 +88,7 @@ export function seedDatabase() {
     const row = db
       .insert(expenseCategories)
       .values({
+        userId: userId ?? null,
         nombre: c.nombre,
         tipo: c.tipo,
         icono: c.icono,
@@ -225,6 +226,7 @@ export function seedDatabase() {
   for (const tx of txList) {
     db.insert(transactions)
       .values({
+        userId: userId ?? null,
         descripcion: tx.descripcion,
         monto: tx.monto,
         tipo: tx.tipo,
@@ -244,6 +246,7 @@ export function seedDatabase() {
     const fechaInicio = new Date(today.getTime() - de.offsetInicio * DAY);
     db.insert(debts)
       .values({
+        userId: userId ?? null,
         nombre: de.nombre,
         tipo: de.tipo,
         personaOAcreedor: de.personaOAcreedor,
@@ -253,8 +256,6 @@ export function seedDatabase() {
       })
       .run();
   }
-
-  db.insert(settings).values({ key: "pin", value: "1234" }).onConflictDoNothing().run();
 
   return { seeded: true, transactions: txList.length };
 }

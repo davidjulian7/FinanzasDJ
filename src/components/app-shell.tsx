@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -13,21 +13,22 @@ import {
   Sun,
   Moon,
   LogOut,
-  KeyRound,
   Wallet,
   CalendarClock,
   Coins,
+  Settings,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChangePinDialog } from "@/components/change-pin-dialog";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -38,6 +39,7 @@ const NAV = [
   { href: "/presupuesto/apartados", label: "Apartados", icon: Coins },
   { href: "/gastos-recurrentes", label: "Gastos recurrentes", icon: CalendarClock },
   { href: "/deudas", label: "Deudas", icon: HandCoins },
+  { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
 const TITLES: Record<string, string> = {
@@ -50,25 +52,41 @@ const TITLES: Record<string, string> = {
   "/presupuesto/apartados": "Apartados",
   "/gastos-recurrentes": "Gastos recurrentes",
   "/deudas": "Deudas",
+  "/configuracion": "Configuración",
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const authed = useAuthStore((s) => s.authed);
+  const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
-  const [pinOpen, setPinOpen] = useState(false);
 
   useEffect(() => {
-    if (!authed) {
+    if (!user) {
       router.replace("/login");
     }
-  }, [authed, router]);
+  }, [user, router]);
 
-  if (!authed) return null;
+  if (!user) return null;
 
   const title = TITLES[pathname] ?? "FinanzasDJ";
+  const iniciales = user.nombre
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join("");
+
+  async function cerrarSesion() {
+    try {
+      await api.post("/api/auth/logout");
+    } catch {
+      /* noop */
+    }
+    logout();
+    router.replace("/login");
+  }
 
   return (
     <div className="min-h-screen">
@@ -107,25 +125,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start gap-3">
                 <div className="btn-gradient flex size-8 items-center justify-center rounded-full text-xs font-bold text-white">
-                  DJ
+                  {iniciales}
                 </div>
-                <span className="text-sm">Mi cuenta</span>
+                <span className="text-sm">{user.nombre}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem onClick={() => setPinOpen(true)}>
-                <KeyRound className="size-4" /> Cambiar PIN
-              </DropdownMenuItem>
+              <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                {user.email}
+              </DropdownMenuLabel>
               <DropdownMenuItem onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
                 {resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />} Modo {resolvedTheme === "dark" ? "claro" : "oscuro"}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  logout();
-                  router.replace("/login");
-                }}
-              >
+              <DropdownMenuItem onClick={cerrarSesion}>
                 <LogOut className="size-4" /> Cerrar sesión
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -149,10 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             variant="ghost"
             size="icon"
             className="md:hidden"
-            onClick={() => {
-              logout();
-              router.replace("/login");
-            }}
+            onClick={cerrarSesion}
           >
             <LogOut className="size-5" />
           </Button>
@@ -181,8 +191,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
-
-      <ChangePinDialog open={pinOpen} onOpenChange={setPinOpen} />
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { apartados, apartadoContribuciones, transactions } from "@/lib/db/schema";
-import { apiError, handleError } from "@/lib/api-server";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +25,15 @@ const EDITABLES = [
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const { id } = await params;
     const apartadoId = Number(id);
-    const actual = db.select().from(apartados).where(eq(apartados.id, apartadoId)).get();
+    const actual = db
+      .select()
+      .from(apartados)
+      .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
+      .get();
     if (!actual) return apiError("Apartado no encontrado", 404);
 
     const body = await req.json();
@@ -76,7 +83,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (Object.keys(set).length === 0) return apiError("No hay campos para actualizar");
 
-    db.update(apartados).set(set).where(eq(apartados.id, apartadoId)).run();
+    db.update(apartados).set(set).where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id))).run();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return handleError(e);
@@ -85,15 +92,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const { id } = await params;
     const apartadoId = Number(id);
-    const actual = db.select().from(apartados).where(eq(apartados.id, apartadoId)).get();
+    const actual = db
+      .select()
+      .from(apartados)
+      .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
+      .get();
     if (!actual) return apiError("Apartado no encontrado", 404);
 
     db.transaction((tx) => {
-      tx.update(transactions).set({ apartadoId: null }).where(eq(transactions.apartadoId, apartadoId)).run();
-      tx.delete(apartadoContribuciones).where(eq(apartadoContribuciones.apartadoId, apartadoId)).run();
-      tx.delete(apartados).where(eq(apartados.id, apartadoId)).run();
+      tx.update(transactions)
+        .set({ apartadoId: null })
+        .where(and(eq(transactions.apartadoId, apartadoId), eq(transactions.userId, user.id)))
+        .run();
+      tx.delete(apartadoContribuciones)
+        .where(and(eq(apartadoContribuciones.apartadoId, apartadoId), eq(apartadoContribuciones.userId, user.id)))
+        .run();
+      tx.delete(apartados).where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id))).run();
     });
     return NextResponse.json({ ok: true });
   } catch (e) {

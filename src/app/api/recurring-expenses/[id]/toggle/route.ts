@@ -1,22 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { recurringExpenses } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { apiError, handleError } from "@/lib/api-server";
+import { and, eq } from "drizzle-orm";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const { id } = await params;
 
-    const existing = db.select().from(recurringExpenses).where(eq(recurringExpenses.id, Number(id))).all()[0];
+    const existing = db
+      .select()
+      .from(recurringExpenses)
+      .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
+      .all()[0];
     if (!existing) {
       return apiError("Gasto recurrente no encontrado");
     }
 
     const newActivo = existing.activo ? false : true;
-    db.update(recurringExpenses).set({ activo: newActivo }).where(eq(recurringExpenses.id, Number(id))).run();
+    db.update(recurringExpenses)
+      .set({ activo: newActivo })
+      .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
+      .run();
 
     return NextResponse.json({ ok: true, activo: newActivo });
   } catch (e) {

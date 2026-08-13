@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiError, handleError } from "@/lib/api-server";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { accounts } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { crearCuenta, type AccountInput } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const rows = db.select().from(accounts).orderBy(accounts.id).all();
+  const user = await requireUser();
+  if (!user) return unauthorized();
+  const rows = db.select().from(accounts).where(eq(accounts.userId, user.id)).orderBy(accounts.id).all();
   return NextResponse.json(rows, {
     headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
   });
@@ -15,8 +19,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const body = (await req.json()) as Partial<AccountInput>;
-    const row = crearCuenta({
+    const row = crearCuenta(user.id, {
       nombre: body.nombre ?? "",
       tipo: (body.tipo ?? "debito") as AccountInput["tipo"],
       saldoActual: Number(body.saldoActual) || 0,

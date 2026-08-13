@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { apiError, handleError } from "@/lib/api-server";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { accounts, expenseCategories, transactions, budgetGroups, apartados } from "@/lib/db/schema";
 import { crearTransaccion, type TxInput } from "@/lib/services";
@@ -8,6 +9,8 @@ import { crearTransaccion, type TxInput } from "@/lib/services";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const user = await requireUser();
+  if (!user) return unauthorized();
   const sp = req.nextUrl.searchParams;
   const from = sp.get("from");
   const to = sp.get("to");
@@ -15,7 +18,7 @@ export async function GET(req: NextRequest) {
   const categoriaId = sp.get("categoria");
   const tipo = sp.get("tipo");
 
-  const conds = [];
+  const conds = [eq(transactions.userId, user.id)];
   if (from) conds.push(gte(transactions.fecha, from));
   if (to) conds.push(lte(transactions.fecha, to));
   if (accountId) conds.push(eq(transactions.accountId, Number(accountId)));
@@ -24,18 +27,16 @@ export async function GET(req: NextRequest) {
     conds.push(eq(transactions.tipo, tipo));
   }
 
-  const where = conds.length ? and(...conds) : undefined;
-  const rows = where
-    ? db.select().from(transactions).where(where).orderBy(desc(transactions.fecha), desc(transactions.id)).all()
-    : db.select().from(transactions).orderBy(desc(transactions.fecha), desc(transactions.id)).all();
+  const where = and(...conds);
+  const rows = db.select().from(transactions).where(where).orderBy(desc(transactions.fecha), desc(transactions.id)).all();
 
-  const cuentas = db.select().from(accounts).all();
+  const cuentas = db.select().from(accounts).where(eq(accounts.userId, user.id)).all();
   const cuentaById = new Map(cuentas.map((c) => [c.id, c]));
-  const cats = db.select().from(expenseCategories).all();
+  const cats = db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).all();
   const catById = new Map(cats.map((c) => [c.id, c]));
   const groups = db.select().from(budgetGroups).all();
   const groupById = new Map(groups.map((g) => [g.id, g]));
-  const apart = db.select().from(apartados).all();
+  const apart = db.select().from(apartados).where(eq(apartados.userId, user.id)).all();
   const apartById = new Map(apart.map((a) => [a.id, a]));
 
   return NextResponse.json(
@@ -68,8 +69,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const body = (await req.json()) as Partial<TxInput>;
-    const id = crearTransaccion({
+    const id = crearTransaccion(user.id, {
       descripcion: body.descripcion ?? "",
       monto: Number(body.monto),
       tipo: (body.tipo ?? "gasto") as TxInput["tipo"],

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { expenseCategories, budgetGroups } from "@/lib/db/schema";
-import { apiError, handleError } from "@/lib/api-server";
+import { eq } from "drizzle-orm";
+import { apiError, handleError, unauthorized } from "@/lib/api-server";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const cats = db.select().from(expenseCategories).all();
+  const user = await requireUser();
+  if (!user) return unauthorized();
+  const cats = db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).all();
   const groups = db.select().from(budgetGroups).all();
   const groupById = new Map(groups.map((g) => [g.id, g]));
 
@@ -20,6 +24,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
     const body = await req.json();
     const { nombre, icono, color, budgetGroupId } = body;
 
@@ -30,6 +36,7 @@ export async function POST(req: NextRequest) {
     const result = db
       .insert(expenseCategories)
       .values({
+        userId: user.id,
         nombre,
         icono: icono ?? "Tag",
         color: color ?? "#7C3AED",

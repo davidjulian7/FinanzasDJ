@@ -9,6 +9,10 @@ export function unauthorized() {
 }
 
 export function handleError(e: unknown) {
-  const message = e instanceof Error ? e.message : "Error inesperado";
-  return NextResponse.json({ error: message }, { status: 500 });
+  if (e instanceof Error) {
+    console.error(`[api] error interno:`, e.stack);
+  } else {
+    console.error(`[api] error interno:`, e);
+  }
+  return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 }

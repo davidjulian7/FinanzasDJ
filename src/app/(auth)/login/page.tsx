@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registrado, setRegistrado] = useState(false);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function LoginPage() {
 
   function cambiarModo(next: Mode) {
     setMode(next);
+    setRegistrado(false);
     setLoading(false);
   }
 
@@ -70,18 +72,12 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await api.post<{ user: { id: string; nombre: string; email: string } }>("/api/auth/register", {
+      await api.post<{ ok: boolean; email: string }>("/api/auth/register", {
         nombre,
         email,
         password,
       });
-      toast.success("Perfil creado. ¡Bienvenido!");
-      const loginRes = await api.post<{ user: { id: string; nombre: string; email: string } }>("/api/auth/login", {
-        email,
-        password,
-      });
-      setUser(loginRes.user);
-      router.replace("/dashboard");
+      setRegistrado(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo crear el perfil");
     } finally {
@@ -218,7 +214,27 @@ export default function LoginPage() {
         )}
 
         <div className="mt-6 text-center text-sm">
-          {mode === "login" ? (
+        {registrado ? (
+          <div className="space-y-4 text-center">
+            <div className="flex justify-center">
+              <Mail className="size-12 text-brand" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Revisa tu correo</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Enviamos un enlace de confirmación a <span className="font-medium">{email}</span>. Confirmalo y luego
+                inicia sesión.
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="btn-gradient w-full py-5 text-base"
+              onClick={() => cambiarModo("login")}
+            >
+              Volver a iniciar sesión
+            </Button>
+          </div>
+        ) : mode === "login" ? (
             <>
               ¿No tienes perfil?{" "}
               <button

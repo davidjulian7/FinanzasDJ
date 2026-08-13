@@ -9,11 +9,22 @@ import {
   index,
   uniqueIndex,
   primaryKey,
+  timestamp,
 } from "drizzle-orm/pg-core";
+
+export const authAttempts = pgTable(
+  "auth_attempts",
+  {
+    id: serial("id").primaryKey(),
+    key: text("key").notNull(),
+    intentadoEn: timestamp("intentado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_auth_attempts_key").on(t.key)]
+);
 
 export const accounts = pgTable("accounts", {
   id: serial("id").primaryKey(),
-  userId: uuid("user_id"),
+  userId: uuid("user_id").notNull(),
   nombre: text("nombre").notNull(),
   tipo: text("tipo", { enum: ["debito", "credito", "efectivo", "inversion"] }).notNull(),
   saldoActual: doublePrecision("saldo_actual").notNull().default(0),
@@ -36,7 +47,7 @@ export const budgetGroups = pgTable("budget_groups", {
 
 export const expenseCategories = pgTable("expense_categories", {
   id: serial("id").primaryKey(),
-  userId: uuid("user_id"),
+  userId: uuid("user_id").notNull(),
   nombre: text("nombre").notNull(),
   icono: text("icono").notNull().default("Tag"),
   color: text("color").notNull().default("#7C3AED"),
@@ -47,7 +58,7 @@ export const expenseCategories = pgTable("expense_categories", {
 
 export const recurringExpenses = pgTable("recurring_expenses", {
   id: serial("id").primaryKey(),
-  userId: uuid("user_id"),
+  userId: uuid("user_id").notNull(),
   nombre: text("nombre").notNull(),
   monto: doublePrecision("monto").notNull(),
   frecuencia: text("frecuencia", { enum: ["semanal", "quincenal", "mensual", "anual"] }).notNull(),
@@ -69,7 +80,7 @@ export const transactions = pgTable(
   "transactions",
   {
     id: serial("id").primaryKey(),
-    userId: uuid("user_id"),
+    userId: uuid("user_id").notNull(),
     descripcion: text("descripcion").notNull(),
     monto: doublePrecision("monto").notNull(),
     tipo: text("tipo", { enum: ["gasto", "ingreso", "transferencia"] }).notNull(),
@@ -88,6 +99,8 @@ export const transactions = pgTable(
     index("idx_transactions_category").on(t.categoryId),
     index("idx_transactions_tipo").on(t.tipo),
     index("idx_transactions_apartado").on(t.apartadoId),
+    index("idx_transactions_user_fecha").on(t.userId, t.fecha),
+    index("idx_transactions_user_account").on(t.userId, t.accountId),
   ]
 );
 
@@ -95,7 +108,7 @@ export const apartados = pgTable(
   "apartados",
   {
     id: serial("id").primaryKey(),
-    userId: uuid("user_id"),
+    userId: uuid("user_id").notNull(),
     nombre: text("nombre").notNull(),
     montoObjetivo: doublePrecision("monto_objetivo").notNull(),
     montoQuincena: doublePrecision("monto_quincena"),
@@ -119,7 +132,7 @@ export const apartadoContribuciones = pgTable(
   "apartado_contribuciones",
   {
     id: serial("id").primaryKey(),
-    userId: uuid("user_id"),
+    userId: uuid("user_id").notNull(),
     apartadoId: integer("apartado_id")
       .notNull()
       .references(() => apartados.id, { onDelete: "cascade" }),
@@ -137,7 +150,7 @@ export const apartadoContribuciones = pgTable(
 
 export const debts = pgTable("debts", {
   id: serial("id").primaryKey(),
-  userId: uuid("user_id"),
+  userId: uuid("user_id").notNull(),
   nombre: text("nombre").notNull(),
   tipo: text("tipo", { enum: ["por_pagar", "por_cobrar"] }).notNull(),
   personaOAcreedor: text("persona_o_acreedor").notNull(),
@@ -150,7 +163,7 @@ export const cuotas = pgTable(
   "cuotas",
   {
     id: serial("id").primaryKey(),
-    userId: uuid("user_id"),
+    userId: uuid("user_id").notNull(),
     accountId: integer("account_id")
       .notNull()
       .references(() => accounts.id),
@@ -166,13 +179,16 @@ export const cuotas = pgTable(
       .notNull()
       .references(() => transactions.id),
   },
-  (t) => [index("idx_cuotas_account").on(t.accountId)]
+  (t) => [
+    index("idx_cuotas_account").on(t.accountId),
+    index("idx_cuotas_user_account").on(t.userId, t.accountId),
+  ]
 );
 
 export const settings = pgTable(
   "settings",
   {
-    userId: uuid("user_id"),
+    userId: uuid("user_id").notNull(),
     key: text("key").notNull(),
     value: text("value").notNull(),
   },

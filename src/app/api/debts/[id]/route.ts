@@ -3,6 +3,7 @@ import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { debts } from "@/lib/db/schema";
+import { validarMonto } from "@/lib/services";
 import { and, eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -21,19 +22,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         .execute()
     )[0];
     if (!actual) return apiError("Deuda no encontrada", 404);
+
+    const montoOriginal = body.montoOriginal != null ? validarMonto(body.montoOriginal, "El monto original debe ser mayor a cero") : actual.montoOriginal;
+    let saldoPendiente = actual.saldoPendiente;
+    if (body.saldoPendiente != null) {
+      const s = Number(body.saldoPendiente);
+      if (!Number.isFinite(s) || s < 0) return apiError("El saldo pendiente debe ser mayor o igual a cero");
+      saldoPendiente = s;
+    }
+
     await db
       .update(debts)
       .set({
         nombre: body.nombre ?? actual.nombre,
         personaOAcreedor: body.personaOAcreedor ?? actual.personaOAcreedor,
-        montoOriginal: body.montoOriginal != null ? Number(body.montoOriginal) : actual.montoOriginal,
-        saldoPendiente: body.saldoPendiente != null ? Number(body.saldoPendiente) : actual.saldoPendiente,
+        montoOriginal,
+        saldoPendiente,
         tipo: body.tipo ?? actual.tipo,
       })
       .where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id)))
       .execute();
     return NextResponse.json({ ok: true });
   } catch (e) {
+    if (e instanceof Error) return apiError(e.message);
     return handleError(e);
   }
 }

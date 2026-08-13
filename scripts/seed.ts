@@ -8,20 +8,22 @@ import { createAdminClient } from "../src/lib/supabase/admin";
 const email = process.argv[2]?.toLowerCase();
 
 async function main() {
-  let userId: string | undefined;
-  if (email) {
-    const admin = createAdminClient();
-    const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const found = data?.users.find((u) => u.email?.toLowerCase() === email);
-    userId = found?.id;
-    if (!userId) {
-      console.log(`Advertencia: no existe un usuario con correo "${email}". El seed se creará sin dueño.`);
-    }
+  if (!email) {
+    console.error("Uso: npm run db:seed -- <email>  (el usuario debe existir en Supabase)");
+    process.exit(1);
+  }
+  const admin = createAdminClient();
+  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const found = data?.users.find((u) => u.email?.toLowerCase() === email);
+  const userId = found?.id;
+  if (!userId) {
+    console.error(`No existe un usuario con correo "${email}". Crealo primero con npm run user:create.`);
+    process.exit(1);
   }
 
   const result = await seedDatabase(userId);
   if (result.seeded) {
-    console.log(`Seed completado: ${result.transactions} transacciones creadas${userId ? ` para el usuario ${email}` : ""}.`);
+    console.log(`Seed completado: ${result.transactions} transacciones creadas para el usuario ${email}.`);
   } else {
     console.log("La base de datos ya contiene datos. Seed omitido.");
   }

@@ -11,7 +11,13 @@ export async function createServerSupabaseClient() {
         getAll: () => store.getAll(),
         setAll: (cookiesToSet) => {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => store.set(name, value, options));
+            cookiesToSet.forEach(({ name, value, options }) =>
+              store.set(name, value, {
+                ...options,
+                sameSite: "strict",
+                secure: process.env.NODE_ENV === "production",
+              })
+            );
           } catch {
             // Llamado desde un Server Component: lo ignora el middleware al refrescar la sesión.
           }

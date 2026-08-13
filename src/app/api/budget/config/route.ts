@@ -82,6 +82,11 @@ export async function POST(req: NextRequest) {
       return apiError("Parámetros mes y año requeridos");
     }
 
+    const ingresoNum = Number(ingresosQuincena ?? 0);
+    if (!Number.isFinite(ingresoNum) || ingresoNum < 0) {
+      return apiError("El ingreso de quincena no es válido");
+    }
+
     const reglaData: ReglaPct = {
       necesidades: Number(regla?.necesidades) || 0,
       deseos: Number(regla?.deseos) || 0,
@@ -94,11 +99,11 @@ export async function POST(req: NextRequest) {
     }
 
     await db.transaction(async (tx) => {
-      if (ingresosQuincena > 0) {
+      if (ingresoNum > 0) {
         await tx
           .insert(settings)
-          .values({ userId: user.id, key: ingresoKey(anio, mes, quincena), value: JSON.stringify(ingresosQuincena) })
-          .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(ingresosQuincena) } })
+          .values({ userId: user.id, key: ingresoKey(anio, mes, quincena), value: JSON.stringify(ingresoNum) })
+          .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(ingresoNum) } })
           .execute();
       }
 

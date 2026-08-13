@@ -99,7 +99,7 @@ export async function seedBudgetGroups() {
   await db.insert(budgetGroups).values(defs).execute();
 }
 
-export async function seedDatabase(userId?: string) {
+export async function seedDatabase(userId: string) {
   await seedBudgetGroups();
   const existing = await db.select({ id: accounts.id }).from(accounts).execute();
   if (existing.length > 0) return { seeded: false, transactions: 0 };
@@ -110,7 +110,7 @@ export async function seedDatabase(userId?: string) {
   const balances: Record<string, number> = {};
   const insertedAccounts = await db
     .insert(accounts)
-    .values(accountDefs.map((a) => ({ ...a, userId: userId ?? null, saldoActual: a.saldoInicial })))
+    .values(accountDefs.map((a) => ({ ...a, userId, saldoActual: a.saldoInicial })))
     .returning({ id: accounts.id, nombre: accounts.nombre, tipo: accounts.tipo })
     .execute();
   for (const a of insertedAccounts) {
@@ -126,7 +126,7 @@ export async function seedDatabase(userId?: string) {
     const rows = await db
       .insert(expenseCategories)
       .values({
-        userId: userId ?? null,
+        userId,
         nombre: c.nombre,
         tipo: c.tipo,
         icono: c.icono,
@@ -265,7 +265,7 @@ export async function seedDatabase(userId?: string) {
     await db
       .insert(transactions)
       .values({
-        userId: userId ?? null,
+        userId,
         descripcion: tx.descripcion,
         monto: tx.monto,
         tipo: tx.tipo,
@@ -286,7 +286,7 @@ export async function seedDatabase(userId?: string) {
     await db
       .insert(debts)
       .values({
-        userId: userId ?? null,
+        userId,
         nombre: de.nombre,
         tipo: de.tipo,
         personaOAcreedor: de.personaOAcreedor,

@@ -4,6 +4,7 @@ import { recurringExpenses, expenseCategories, accounts, budgetGroups } from "@/
 import { eq, and, desc } from "drizzle-orm";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
+import { validarMonto } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,11 @@ export async function POST(req: NextRequest) {
     if (!nombre || !monto || !frecuencia || !proximoCobro || !expenseCategoryId || !accountId || !budgetGroupId) {
       return apiError("Todos los campos son requeridos");
     }
+    if (!["semanal", "quincenal", "mensual", "anual"].includes(frecuencia)) {
+      return apiError("Frecuencia inválida");
+    }
+
+    const montoNum = validarMonto(monto, "El monto debe ser mayor a cero");
 
     const result = (
       await db
@@ -59,7 +65,7 @@ export async function POST(req: NextRequest) {
         .values({
           userId: user.id,
           nombre,
-          monto,
+          monto: montoNum,
           frecuencia,
           proximoCobro,
           expenseCategoryId,
@@ -74,6 +80,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ id: result.id });
   } catch (e) {
+    if (e instanceof Error) return apiError(e.message);
     return handleError(e);
   }
 }

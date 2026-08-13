@@ -4,6 +4,7 @@ import { recurringExpenses } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
+import { validarMonto } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const updateData: Record<string, unknown> = {};
     if (nombre !== undefined) updateData.nombre = nombre;
-    if (monto !== undefined) updateData.monto = monto;
-    if (frecuencia !== undefined) updateData.frecuencia = frecuencia;
+    if (monto !== undefined) updateData.monto = validarMonto(monto, "El monto debe ser mayor a cero");
+    if (frecuencia !== undefined) {
+      if (!["semanal", "quincenal", "mensual", "anual"].includes(frecuencia)) return apiError("Frecuencia inválida");
+      updateData.frecuencia = frecuencia;
+    }
     if (proximoCobro !== undefined) updateData.proximoCobro = proximoCobro;
     if (expenseCategoryId !== undefined) updateData.expenseCategoryId = expenseCategoryId;
     if (accountId !== undefined) updateData.accountId = accountId;
@@ -45,6 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     return NextResponse.json({ ok: true });
   } catch (e) {
+    if (e instanceof Error) return apiError(e.message);
     return handleError(e);
   }
 }

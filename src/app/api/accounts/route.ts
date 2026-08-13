@@ -12,9 +12,7 @@ export async function GET() {
   const user = await requireUser();
   if (!user) return unauthorized();
   const rows = await db.select().from(accounts).where(eq(accounts.userId, user.id)).orderBy(accounts.id).execute();
-  return NextResponse.json(rows, {
-    headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
-  });
+  return NextResponse.json(rows);
 }
 
 export async function POST(req: NextRequest) {
@@ -25,7 +23,7 @@ export async function POST(req: NextRequest) {
     const row = await crearCuenta(user.id, {
       nombre: body.nombre ?? "",
       tipo: (body.tipo ?? "debito") as AccountInput["tipo"],
-      saldoActual: Number(body.saldoActual) || 0,
+      saldoActual: body.saldoActual == null ? 0 : Number(body.saldoActual),
       limiteCredito: body.limiteCredito ?? null,
       fechaCorte: body.fechaCorte ?? null,
       fechaPago: body.fechaPago ?? null,

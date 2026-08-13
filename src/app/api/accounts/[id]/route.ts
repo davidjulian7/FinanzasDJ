@@ -14,7 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await actualizarCuenta(user.id, Number(id), {
       nombre: body.nombre ?? "",
       tipo: (body.tipo ?? "debito") as AccountInput["tipo"],
-      saldoActual: Number(body.saldoActual) || 0,
+      saldoActual: body.saldoActual == null ? 0 : Number(body.saldoActual),
       limiteCredito: body.limiteCredito ?? null,
       fechaCorte: body.fechaCorte ?? null,
       fechaPago: body.fechaPago ?? null,

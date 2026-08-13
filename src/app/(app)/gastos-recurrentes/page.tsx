@@ -141,7 +141,7 @@ export default function RecurringExpensesPage() {
             <div key={i} className="h-20 rounded-xl border border-border animate-pulse bg-muted/50" />
           ))}
         </div>
-      ) : activeItems.length === 0 ? (
+      ) : activeItems.length === 0 && inactiveItems.length === 0 ? (
         <div className="glass rounded-2xl border border-border py-12 text-center text-sm text-muted-foreground">
           {showInactive ? "No hay gastos recurrentes" : "No hay gastos recurrentes activos"}
         </div>

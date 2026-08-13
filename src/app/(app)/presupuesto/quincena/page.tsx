@@ -1,11 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
+import { PiggyBank, Check } from "lucide-react";
 import { formatCurrency, monthKey } from "@/lib/format";
 import { api } from "@/lib/api";
 import { BudgetBar } from "@/components/budget-bar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { IconByName } from "@/components/icon-registry";
 import { cn } from "@/lib/utils";
-import type { BudgetExecutionData } from "@/lib/types";
+import { ApartadoPagoModal } from "@/components/apartado-pago-modal";
+import type { BudgetExecutionData, BudgetExecutionGroup, ApartadoRow } from "@/lib/types";
 
 export default function BudgetExecutionPage() {
   const hoy = new Date();
@@ -13,6 +19,8 @@ export default function BudgetExecutionPage() {
   const [quincena, setQuincena] = useState<1 | 2>(() => (hoy.getDate() <= 15 ? 1 : 2));
   const [data, setData] = useState<BudgetExecutionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [apartandoId, setApartandoId] = useState<number | null>(null);
+  const [paying, setPaying] = useState<ApartadoRow | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -34,6 +42,48 @@ export default function BudgetExecutionPage() {
   useEffect(() => {
     setQuincena(hoy.getDate() <= 15 ? 1 : 2);
   }, [mes]);
+
+  const [m, a] = mes.split("-").map(Number);
+
+  async function apartar(g: BudgetExecutionGroup, apartadoId: number) {
+    setApartandoId(apartadoId);
+    try {
+      const res = await api.post<{ monto: number }>("/api/apartados/contribuciones", {
+        apartadoId,
+        anio: a,
+        mes: m,
+        quincena,
+      });
+      toast.success(`Apartado ${formatCurrency(res.monto)}`);
+      cargar();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo apartar");
+    } finally {
+      setApartandoId(null);
+    }
+  }
+
+  async function quitar(g: BudgetExecutionGroup, apartadoId: number) {
+    setApartandoId(apartadoId);
+    try {
+      await api.delete(`/api/apartados/contribuciones?apartadoId=${apartadoId}&anio=${a}&mes=${m}&quincena=${quincena}`);
+      cargar();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo deshacer");
+    } finally {
+      setApartandoId(null);
+    }
+  }
+
+  async function abrirPago(apartadoId: number) {
+    try {
+      const list = await api.get<ApartadoRow[]>("/api/apartados");
+      const ap = list.find((x) => x.id === apartadoId);
+      if (ap) setPaying(ap);
+    } catch {
+      toast.error("No se pudo abrir el pago");
+    }
+  }
 
   if (loading || !data) {
     return (
@@ -80,6 +130,34 @@ export default function BudgetExecutionPage() {
         </div>
       </div>
 
+      {data.apartadosListos.length > 0 && (
+        <div className="glass glow-hover rounded-2xl border border-border p-4">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-positive">
+            <PiggyBank className="size-4" /> Listos para pagar
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {data.apartadosListos.map((ap) => (
+              <button
+                key={ap.id}
+                onClick={() => abrirPago(ap.id)}
+                className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:border-positive/40"
+              >
+                <span className="flex size-7 items-center justify-center rounded-md text-xs" style={{ backgroundColor: `${ap.color}18`, color: ap.color }}>
+                  <IconByName name={ap.icono} className="size-4" />
+                </span>
+                <span className="text-sm font-medium">{ap.nombre}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {formatCurrency(ap.juntado)} <span className="text-muted-foreground/60">/ {formatCurrency(ap.objetivo)}</span>
+                </span>
+                <Badge className="bg-positive/15 text-positive" variant="outline">
+                  Pagar
+                </Badge>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         {data.groups.map((g) => (
           <div key={g.group.id} className="glass glow-hover rounded-2xl border border-border p-5">
@@ -97,10 +175,49 @@ export default function BudgetExecutionPage() {
                   {formatCurrency(g.disponible)}
                 </span>
               </span>
+              {g.reservado > 0 && (
+                <span>
+                  {formatCurrency(g.reservado)} reservados en apartados
+                </span>
+              )}
               {g.recurrentTotal > 0 && (
                 <span>{formatCurrency(g.recurrentTotal)} reservados en recurrentes</span>
               )}
             </div>
+
+            {g.apartados.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Apartados de este grupo
+                </p>
+                {g.apartados.map((ap) => (
+                  <div
+                    key={ap.id}
+                    className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2"
+                  >
+                    <div
+                      className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs"
+                      style={{ backgroundColor: `${ap.color}18`, color: ap.color }}
+                    >
+                      <IconByName name={ap.icono} className="size-4" />
+                    </div>
+                    <span className="min-w-0 flex-1 truncate text-sm">{ap.nombre}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {formatCurrency(ap.cuota)}/quincena
+                    </span>
+                    {ap.registrado ? (
+                      <Button variant="ghost" size="sm" className="gap-1 text-positive" disabled={apartandoId === ap.id} onClick={() => quitar(g, ap.id)} title="Deshacer">
+                        <Check className="size-3.5" /> Apartado
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="gap-1" disabled={apartandoId === ap.id} onClick={() => apartar(g, ap.id)}>
+                        <PiggyBank className="size-3.5" /> Apartar {formatCurrency(ap.cuota)}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-3 space-y-1.5">
               {g.categorias.length === 0 ? (
@@ -125,6 +242,15 @@ export default function BudgetExecutionPage() {
           </div>
         ))}
       </div>
+
+      <ApartadoPagoModal
+        open={paying != null}
+        onOpenChange={(v) => {
+          if (!v) setPaying(null);
+        }}
+        apartado={paying}
+        onSaved={cargar}
+      />
     </div>
   );
 }

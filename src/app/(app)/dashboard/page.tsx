@@ -127,6 +127,14 @@ export default function DashboardPage() {
                     <BudgetBar grupo="necesidades" presupuestado={data.presupuesto.necesidades.presupuestado} gastado={data.presupuesto.necesidades.gastado} />
                     <BudgetBar grupo="deseos" presupuestado={data.presupuesto.deseos.presupuestado} gastado={data.presupuesto.deseos.gastado} />
                     <BudgetBar grupo="ahorro" presupuestado={data.presupuesto.ahorro.presupuestado} gastado={data.presupuesto.ahorro.gastado} />
+                    {data.reservado > 0 && (
+                      <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                        {formatCurrency(data.reservado)} reservados en apartados esta quincena ·{" "}
+                        <Link href="/presupuesto/apartados" className="text-primary hover:underline">
+                          ver apartados
+                        </Link>
+                      </p>
+                    )}
                   </div>
                 </div>
 

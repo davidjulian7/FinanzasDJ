@@ -24,8 +24,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReference } from "@/stores/reference";
 import { api } from "@/lib/api";
-import type { TxRow, TxTipo } from "@/lib/types";
-import { todayISO } from "@/lib/format";
+import type { TxRow, TxTipo, ApartadoRow } from "@/lib/types";
+import { formatCurrency, todayISO } from "@/lib/format";
 
 export function TransactionModal({
   open,
@@ -49,6 +49,8 @@ export function TransactionModal({
   const [categoryId, setCategoryId] = useState("");
   const [fecha, setFecha] = useState(todayISO());
   const [notas, setNotas] = useState("");
+  const [apartados, setApartados] = useState<ApartadoRow[]>([]);
+  const [apartadoId, setApartadoId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -60,7 +62,21 @@ export function TransactionModal({
     setCategoryId(tx?.categoryId ? String(tx.categoryId) : "");
     setFecha(tx?.fecha ?? todayISO());
     setNotas(tx?.notas ?? "");
+    setApartadoId(tx?.apartadoId ?? null);
+    if (!tx) {
+      api
+        .get<ApartadoRow[]>("/api/apartados")
+        .then((list) => setApartados(list.filter((a) => a.activo)))
+        .catch(() => {
+          /* opcional */
+        });
+    }
   }, [open, tx]);
+
+  const apartadoDeCategoria = useMemo(() => {
+    if (!categoryId || tipo === "transferencia" || tipo === "ingreso") return null;
+    return apartados.find((a) => a.categoriaId === Number(categoryId)) ?? null;
+  }, [apartados, categoryId, tipo]);
 
   const categoriasFiltradas = useMemo(
     () => categorias.filter((c) => c.tipo === (tipo === "ingreso" ? "ingreso" : "gasto")),
@@ -88,6 +104,7 @@ export function TransactionModal({
       accountId: Number(accountId),
       accountDestinoId: tipo === "transferencia" ? Number(accountDestinoId) : null,
       categoryId: tipo === "transferencia" ? null : Number(categoryId),
+      apartadoId: tipo === "gasto" && apartadoId != null ? apartadoId : null,
       fecha,
       notas: notas || null,
     };
@@ -101,6 +118,7 @@ export function TransactionModal({
       const cuentaNombre = cuentas.find((c) => c.id === Number(accountId))?.nombre ?? "—";
       const cuentaDestino = tipo === "transferencia" ? (cuentas.find((c) => c.id === Number(accountDestinoId))?.nombre ?? "—") : null;
       const cat = tipo === "transferencia" ? undefined : categorias.find((c) => c.id === Number(categoryId));
+      const apElegido = apartados.find((x) => x.id === apartadoId);
       onSaved?.({
         id,
         descripcion,
@@ -111,12 +129,14 @@ export function TransactionModal({
         accountId: Number(accountId),
         accountDestinoId: tipo === "transferencia" ? Number(accountDestinoId) : null,
         categoryId: tipo === "transferencia" ? null : Number(categoryId),
+        apartadoId: tipo === "gasto" && apartadoId != null ? apartadoId : null,
         cuenta: cuentaNombre,
         cuentaDestino,
         categoria: cat?.nombre ?? null,
         icono: cat?.icono ?? null,
         color: cat?.color ?? null,
         budgetGroupKey: cat?.budgetGroup?.key ?? null,
+        apartado: apElegido?.nombre ?? null,
       });
       toast.success(tx ? "Transacción actualizada" : "Movimiento registrado");
       onOpenChange(false);
@@ -220,6 +240,26 @@ export function TransactionModal({
                   <p className="text-[11px] text-muted-foreground">
                     Esta categoría no está asignada a un grupo de presupuesto: el gasto no contará en la 50/30/20.
                   </p>
+                )}
+                {apartadoDeCategoria && !tx && (
+                  <label
+                    className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={apartadoId === apartadoDeCategoria.id}
+                      onChange={(e) => setApartadoId(e.target.checked ? apartadoDeCategoria.id : null)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Pagar desde el apartado{" "}
+                      <span className="font-medium" style={{ color: apartadoDeCategoria.color }}>
+                        {apartadoDeCategoria.nombre}
+                      </span>{" "}
+                      ({formatCurrency(apartadoDeCategoria.juntado)} juntados de {formatCurrency(apartadoDeCategoria.montoObjetivo)}).
+                      Así el gasto no vuelve a contar en el presupuesto.
+                    </span>
+                  </label>
                 )}
               </div>
             )}

@@ -2,7 +2,7 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, handleError } from "@/lib/api-server";
 import { db } from "@/lib/db";
-import { accounts, expenseCategories, transactions, budgetGroups } from "@/lib/db/schema";
+import { accounts, expenseCategories, transactions, budgetGroups, apartados } from "@/lib/db/schema";
 import { crearTransaccion, type TxInput } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -35,11 +35,14 @@ export async function GET(req: NextRequest) {
   const catById = new Map(cats.map((c) => [c.id, c]));
   const groups = db.select().from(budgetGroups).all();
   const groupById = new Map(groups.map((g) => [g.id, g]));
+  const apart = db.select().from(apartados).all();
+  const apartById = new Map(apart.map((a) => [a.id, a]));
 
   return NextResponse.json(
     rows.map((t) => {
       const cat = t.categoryId ? catById.get(t.categoryId) : undefined;
       const group = cat?.budgetGroupId ? groupById.get(cat.budgetGroupId) : undefined;
+      const ap = t.apartadoId ? apartById.get(t.apartadoId) : undefined;
       return {
         id: t.id,
         descripcion: t.descripcion,
@@ -50,12 +53,14 @@ export async function GET(req: NextRequest) {
         accountId: t.accountId,
         accountDestinoId: t.accountDestinoId,
         categoryId: t.categoryId,
+        apartadoId: t.apartadoId,
         cuenta: cuentaById.get(t.accountId)?.nombre ?? "—",
         cuentaDestino: t.accountDestinoId ? (cuentaById.get(t.accountDestinoId)?.nombre ?? "—") : null,
         categoria: cat?.nombre ?? null,
         icono: cat?.icono ?? null,
         color: cat?.color ?? null,
         budgetGroupKey: group?.key ?? null,
+        apartado: ap?.nombre ?? null,
       };
     })
   );
@@ -71,6 +76,7 @@ export async function POST(req: NextRequest) {
       accountId: Number(body.accountId),
       accountDestinoId: body.accountDestinoId ? Number(body.accountDestinoId) : null,
       categoryId: body.categoryId ? Number(body.categoryId) : null,
+      apartadoId: body.apartadoId ? Number(body.apartadoId) : null,
       fecha: body.fecha ?? "",
       notas: body.notas ?? null,
     });

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const accounts = sqliteTable("accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -63,6 +63,7 @@ export const transactions = sqliteTable(
       .references(() => accounts.id),
     accountDestinoId: integer("account_destino_id").references(() => accounts.id),
     categoryId: integer("category_id").references(() => expenseCategories.id),
+    apartadoId: integer("apartado_id").references(() => apartados.id, { onDelete: "set null" }),
     fecha: text("fecha").notNull(),
     notas: text("notas"),
   },
@@ -71,6 +72,49 @@ export const transactions = sqliteTable(
     index("idx_transactions_account").on(t.accountId),
     index("idx_transactions_category").on(t.categoryId),
     index("idx_transactions_tipo").on(t.tipo),
+    index("idx_transactions_apartado").on(t.apartadoId),
+  ]
+);
+
+export const apartados = sqliteTable(
+  "apartados",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    nombre: text("nombre").notNull(),
+    montoObjetivo: real("monto_objetivo").notNull(),
+    montoQuincena: real("monto_quincena"),
+    periodicidad: text("periodicidad", { enum: ["mensual", "anual"] }).notNull(),
+    diaPago: integer("dia_pago").notNull(),
+    mesPago: integer("mes_pago"),
+    budgetGroupId: integer("budget_group_id").references(() => budgetGroups.id),
+    categoriaId: integer("category_id").references(() => expenseCategories.id),
+    cuentaId: integer("account_id").references(() => accounts.id),
+    fechaInicio: text("fecha_inicio").notNull(),
+    icono: text("icono").notNull().default("Wallet"),
+    color: text("color").notNull().default("#7C3AED"),
+    nota: text("nota"),
+    activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+    orden: integer("orden").notNull().default(0),
+  },
+  (t) => [index("idx_apartados_grupo").on(t.budgetGroupId)]
+);
+
+export const apartadoContribuciones = sqliteTable(
+  "apartado_contribuciones",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    apartadoId: integer("apartado_id")
+      .notNull()
+      .references(() => apartados.id, { onDelete: "cascade" }),
+    anio: integer("anio").notNull(),
+    mes: integer("mes").notNull(),
+    quincena: integer("quincena").notNull(),
+    monto: real("monto").notNull(),
+    fecha: text("fecha").notNull(),
+  },
+  (t) => [
+    index("idx_apartado_contrib_apartado").on(t.apartadoId),
+    uniqueIndex("uq_apartado_contrib").on(t.apartadoId, t.anio, t.mes, t.quincena),
   ]
 );
 
@@ -125,3 +169,7 @@ export type Debt = typeof debts.$inferSelect;
 export type NewDebt = typeof debts.$inferInsert;
 export type Cuota = typeof cuotas.$inferSelect;
 export type NewCuota = typeof cuotas.$inferInsert;
+export type Apartado = typeof apartados.$inferSelect;
+export type NewApartado = typeof apartados.$inferInsert;
+export type ApartadoContribucion = typeof apartadoContribuciones.$inferSelect;
+export type NewApartadoContribucion = typeof apartadoContribuciones.$inferInsert;

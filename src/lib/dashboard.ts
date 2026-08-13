@@ -1,6 +1,6 @@
-import { and, desc, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "./db";
-import { accounts, budgetGroups, expenseCategories, transactions } from "./db/schema";
+import { accounts, apartadoContribuciones, apartados, budgetGroups, expenseCategories, transactions } from "./db/schema";
 import { daysBetween, quincenaDelDia, quincenaRango, type DateRange } from "./ranges";
 import { getIngresoQuincena, getReglaPct } from "./settings";
 
@@ -98,10 +98,10 @@ export function getDashboard(range: DateRange) {
   const quincena = quincenaDelDia(hoy.getDate());
   const rangoQuincena = quincenaRango(anio, mes, quincena);
 
-  const presupuesto: Record<Grupo, { presupuestado: number; gastado: number }> = {
-    necesidades: { presupuestado: 0, gastado: 0 },
-    deseos: { presupuestado: 0, gastado: 0 },
-    ahorro: { presupuestado: 0, gastado: 0 },
+  const presupuesto: Record<Grupo, { presupuestado: number; gastado: number; apartado: number }> = {
+    necesidades: { presupuestado: 0, gastado: 0, apartado: 0 },
+    deseos: { presupuestado: 0, gastado: 0, apartado: 0 },
+    ahorro: { presupuestado: 0, gastado: 0, apartado: 0 },
   };
   const txsMes = db
     .select()
@@ -110,6 +110,7 @@ export function getDashboard(range: DateRange) {
     .all();
   for (const t of txsMes) {
     if (t.tipo !== "gasto" || !t.categoryId) continue;
+    if (t.apartadoId != null) continue; // pagado desde apartado: ya no vuelve a contar
     const grupo = grupoDeCat(t.categoryId);
     if (grupo && presupuesto[grupo as Grupo]) presupuesto[grupo as Grupo].gastado += t.monto;
   }
@@ -119,6 +120,29 @@ export function getDashboard(range: DateRange) {
   presupuesto.deseos.presupuestado = Math.round((ingresosMes * regla.deseos) / 100);
   presupuesto.ahorro.presupuestado = Math.round((ingresosMes * regla.ahorro) / 100);
 
+  const apartadosActivos = db.select().from(apartados).where(eq(apartados.activo, true)).all();
+  const contribsQuincena = db
+    .select()
+    .from(apartadoContribuciones)
+    .where(
+      and(
+        eq(apartadoContribuciones.anio, anio),
+        eq(apartadoContribuciones.mes, mes),
+        eq(apartadoContribuciones.quincena, quincena)
+      )
+    )
+    .all();
+  const grupoIdByKey = new Map(groups.map((g) => [g.key, g.id]));
+  for (const ap of apartadosActivos) {
+    if (!ap.budgetGroupId) continue;
+    const key = groupById.get(ap.budgetGroupId)?.key as Grupo | undefined;
+    if (!key || !presupuesto[key]) continue;
+    for (const c of contribsQuincena) {
+      if (c.apartadoId === ap.id) presupuesto[key].apartado += c.monto;
+    }
+  }
+  const reservadoTotal = Object.values(presupuesto).reduce((s, g) => s + g.apartado, 0);
+
   const recientes = db
     .select()
     .from(transactions)
@@ -127,6 +151,7 @@ export function getDashboard(range: DateRange) {
     .all()
     .map((t) => {
       const cat = t.categoryId ? catById.get(t.categoryId) : undefined;
+      const ap = t.apartadoId ? db.select({ nombre: apartados.nombre }).from(apartados).where(eq(apartados.id, t.apartadoId)).get() : undefined;
       return {
         id: t.id,
         descripcion: t.descripcion,
@@ -134,11 +159,16 @@ export function getDashboard(range: DateRange) {
         tipo: t.tipo,
         fecha: t.fecha,
         notas: t.notas,
+        accountId: t.accountId,
+        accountDestinoId: t.accountDestinoId,
+        categoryId: t.categoryId,
+        apartadoId: t.apartadoId,
         cuenta: cuentaById.get(t.accountId)?.nombre ?? "—",
         cuentaDestino: t.accountDestinoId ? (cuentaById.get(t.accountDestinoId)?.nombre ?? "—") : null,
         categoria: cat?.nombre ?? null,
         icono: cat?.icono ?? null,
         color: cat?.color ?? null,
+        apartado: ap?.nombre ?? null,
       };
     });
 
@@ -155,12 +185,13 @@ export function getDashboard(range: DateRange) {
     evolucion,
     flujo,
     presupuesto: {
-      necesidades: { presupuestado: Math.round(presupuesto.necesidades.presupuestado), gastado: Math.round(presupuesto.necesidades.gastado) },
-      deseos: { presupuestado: Math.round(presupuesto.deseos.presupuestado), gastado: Math.round(presupuesto.deseos.gastado) },
-      ahorro: { presupuestado: Math.round(presupuesto.ahorro.presupuestado), gastado: Math.round(presupuesto.ahorro.gastado) },
+      necesidades: { presupuestado: Math.round(presupuesto.necesidades.presupuestado), gastado: Math.round(presupuesto.necesidades.gastado), apartado: Math.round(presupuesto.necesidades.apartado) },
+      deseos: { presupuestado: Math.round(presupuesto.deseos.presupuestado), gastado: Math.round(presupuesto.deseos.gastado), apartado: Math.round(presupuesto.deseos.apartado) },
+      ahorro: { presupuestado: Math.round(presupuesto.ahorro.presupuestado), gastado: Math.round(presupuesto.ahorro.gastado), apartado: Math.round(presupuesto.ahorro.apartado) },
     },
     ingresosMes: Math.round(ingresosMes),
     recientes,
+    reservado: Math.round(reservadoTotal),
   };
 }
 

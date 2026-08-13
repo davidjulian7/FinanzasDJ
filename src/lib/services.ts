@@ -12,6 +12,7 @@ export interface TxInput {
   accountId: number;
   accountDestinoId?: number | null;
   categoryId?: number | null;
+  apartadoId?: number | null;
   fecha: string;
   notas?: string | null;
 }
@@ -100,6 +101,7 @@ export function crearTransaccion(input: TxInput) {
         accountId: input.accountId,
         accountDestinoId: input.accountDestinoId ?? null,
         categoryId: input.categoryId ?? null,
+        apartadoId: input.apartadoId ?? null,
         fecha: input.fecha,
         notas: input.notas?.trim() || null,
       })
@@ -139,6 +141,7 @@ export function actualizarTransaccion(id: number, input: TxInput) {
         accountId: input.accountId,
         accountDestinoId: input.accountDestinoId ?? null,
         categoryId: input.categoryId ?? null,
+        apartadoId: input.apartadoId ?? null,
         fecha: input.fecha,
         notas: input.notas?.trim() || null,
       })

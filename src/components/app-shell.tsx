@@ -16,6 +16,7 @@ import {
   KeyRound,
   Wallet,
   CalendarClock,
+  Coins,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const NAV = [
   { href: "/transacciones", label: "Transacciones", icon: ArrowLeftRight },
   { href: "/cuentas", label: "Cuentas", icon: CreditCard },
   { href: "/presupuesto", label: "Presupuesto", icon: PiggyBank },
+  { href: "/presupuesto/apartados", label: "Apartados", icon: Coins },
   { href: "/gastos-recurrentes", label: "Gastos recurrentes", icon: CalendarClock },
   { href: "/deudas", label: "Deudas", icon: HandCoins },
 ];
@@ -45,6 +47,7 @@ const TITLES: Record<string, string> = {
   "/presupuesto": "Presupuesto",
   "/presupuesto/configuracion": "Configurar presupuesto",
   "/presupuesto/quincena": "Ejecución quincena",
+  "/presupuesto/apartados": "Apartados",
   "/gastos-recurrentes": "Gastos recurrentes",
   "/deudas": "Deudas",
 };
@@ -81,7 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
         <nav className="flex-1 space-y-1 px-3 py-2">
           {NAV.map((item) => {
-            const active = pathname.startsWith(item.href);
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}

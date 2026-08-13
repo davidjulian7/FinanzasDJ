@@ -10,12 +10,14 @@ export interface TxRow {
   accountId: number;
   accountDestinoId: number | null;
   categoryId: number | null;
+  apartadoId: number | null;
   cuenta: string;
   cuentaDestino: string | null;
   categoria: string | null;
   icono: string | null;
   color: string | null;
   budgetGroupKey: string | null;
+  apartado: string | null;
 }
 
 export type AccountTipo = "debito" | "credito" | "efectivo" | "inversion";
@@ -75,10 +77,11 @@ export interface DashboardData {
   flujo: Array<{ label: string; ingresos: number; gastos: number }>;
   presupuesto: Record<
     "necesidades" | "deseos" | "ahorro",
-    { presupuestado: number; gastado: number }
+    { presupuestado: number; gastado: number; apartado: number }
   >;
   ingresosMes: number;
   recientes: TxRow[];
+  reservado: number;
 }
 
 export interface DebtRow {
@@ -140,7 +143,28 @@ export interface BudgetExecutionGroup {
   gastado: number;
   progreso: number;
   disponible: number;
+  reservado: number;
   recurrentTotal: number;
+  apartados: ApartadoPendiente[];
+}
+
+export interface ApartadoPendiente {
+  id: number;
+  nombre: string;
+  color: string;
+  icono: string;
+  cuota: number;
+  registrado: boolean;
+  monto: number;
+}
+
+export interface ApartadoListo {
+  id: number;
+  nombre: string;
+  color: string;
+  icono: string;
+  juntado: number;
+  objetivo: number;
 }
 
 export interface BudgetExecutionData {
@@ -150,4 +174,39 @@ export interface BudgetExecutionData {
   ingresosQuincena: number;
   regla: ReglaPct;
   groups: BudgetExecutionGroup[];
+  apartadosListos: ApartadoListo[];
+}
+
+export type ApartadoPeriodicidad = "mensual" | "anual";
+export type ApartadoEstado = "activo" | "listo" | "atrasado";
+
+export interface ApartadoRow {
+  id: number;
+  nombre: string;
+  montoObjetivo: number;
+  montoQuincena: number | null;
+  periodicidad: ApartadoPeriodicidad;
+  diaPago: number;
+  mesPago: number | null;
+  budgetGroupId: number | null;
+  categoriaId: number | null;
+  cuentaId: number | null;
+  fechaInicio: string;
+  icono: string;
+  color: string;
+  nota: string | null;
+  activo: boolean;
+  orden: number;
+  cuotaSugerida: number;
+  cuotaEfectiva: number;
+  ultimoPago: string | null;
+  vencimiento: string;
+  juntado: number;
+  faltante: number;
+  progreso: number;
+  estado: ApartadoEstado;
+  grupo: BudgetGroupRow | null;
+  categoria: ExpenseCategoryRow | null;
+  cuenta: AccountRow | null;
+  apartadoQuincena: { anio: number; mes: number; quincena: 1 | 2; registrado: boolean; monto: number };
 }

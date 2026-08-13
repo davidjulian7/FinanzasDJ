@@ -32,7 +32,7 @@ export default function ConfiguracionPage() {
   async function guardarPerfil() {
     setGuardando(true);
     try {
-      const res = await api.patch<{ user: { id: number; nombre: string; email: string } }>("/api/auth/profile", {
+      const res = await api.patch<{ user: { id: string; nombre: string; email: string } }>("/api/auth/profile", {
         nombre,
         email,
       });

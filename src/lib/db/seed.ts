@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "./index";
 import { accounts, budgetGroups, debts, expenseCategories, transactions } from "./schema";
 
@@ -62,19 +62,31 @@ const debtDefs = [
   { nombre: "Préstamo a Julián", tipo: "por_cobrar" as const, personaOAcreedor: "Julián", montoOriginal: 80000, saldoPendiente: 35000, offsetInicio: 40 },
 ];
 
-export function seedDatabase(userId?: number) {
-  const existing = db.select({ id: accounts.id }).from(accounts).all();
+export async function seedBudgetGroups() {
+  const existing = await db.select({ id: budgetGroups.id }).from(budgetGroups).execute();
+  if (existing.length > 0) return;
+  const defs: Array<{ key: "necesidades" | "deseos" | "ahorro"; label: string; color: string; icono: string; orden: number }> = [
+    { key: "necesidades", label: "Necesidades", color: "#3B82F6", icono: "House", orden: 1 },
+    { key: "deseos", label: "Deseos", color: "#EC4899", icono: "Sparkles", orden: 2 },
+    { key: "ahorro", label: "Ahorro", color: "#06D6A0", icono: "PiggyBank", orden: 3 },
+  ];
+  await db.insert(budgetGroups).values(defs).execute();
+}
+
+export async function seedDatabase(userId?: string) {
+  await seedBudgetGroups();
+  const existing = await db.select({ id: accounts.id }).from(accounts).execute();
   if (existing.length > 0) return { seeded: false, transactions: 0 };
 
   const rng = mulberry32(20260214);
 
   const accountIds: Record<string, number> = {};
   const balances: Record<string, number> = {};
-  const insertedAccounts = db
+  const insertedAccounts = await db
     .insert(accounts)
     .values(accountDefs.map((a) => ({ ...a, userId: userId ?? null, saldoActual: a.saldoInicial })))
     .returning({ id: accounts.id, nombre: accounts.nombre, tipo: accounts.tipo })
-    .all();
+    .execute();
   for (const a of insertedAccounts) {
     const def = accountDefs.find((d) => d.nombre === a.nombre)!;
     accountIds[a.nombre] = a.id;
@@ -82,10 +94,10 @@ export function seedDatabase(userId?: number) {
   }
 
   const catIds: Record<string, number> = {};
-  const grupos = db.select().from(budgetGroups).all();
+  const grupos = await db.select().from(budgetGroups).execute();
   const groupByKey = new Map(grupos.map((g) => [g.key, g.id]));
   for (const c of categoryDefs) {
-    const row = db
+    const rows = await db
       .insert(expenseCategories)
       .values({
         userId: userId ?? null,
@@ -97,8 +109,8 @@ export function seedDatabase(userId?: number) {
         activo: true,
       })
       .returning({ id: expenseCategories.id, nombre: expenseCategories.nombre })
-      .all()[0];
-    catIds[c.nombre] = row.id;
+      .execute();
+    catIds[c.nombre] = rows[0].id;
   }
 
   type TxSeed = {
@@ -224,7 +236,8 @@ export function seedDatabase(userId?: number) {
   }
 
   for (const tx of txList) {
-    db.insert(transactions)
+    await db
+      .insert(transactions)
       .values({
         userId: userId ?? null,
         descripcion: tx.descripcion,
@@ -235,16 +248,17 @@ export function seedDatabase(userId?: number) {
         categoryId: tx.categoria ? catIds[tx.categoria] : null,
         fecha: tx.fecha,
       })
-      .run();
+      .execute();
   }
 
   for (const [name, saldo] of Object.entries(balances)) {
-    db.update(accounts).set({ saldoActual: Math.round(saldo) }).where(eq(accounts.nombre, name)).run();
+    await db.update(accounts).set({ saldoActual: Math.round(saldo) }).where(and(eq(accounts.nombre, name))).execute();
   }
 
   for (const de of debtDefs) {
     const fechaInicio = new Date(today.getTime() - de.offsetInicio * DAY);
-    db.insert(debts)
+    await db
+      .insert(debts)
       .values({
         userId: userId ?? null,
         nombre: de.nombre,
@@ -254,7 +268,7 @@ export function seedDatabase(userId?: number) {
         saldoPendiente: de.saldoPendiente,
         fechaInicio: fmt(fechaInicio),
       })
-      .run();
+      .execute();
   }
 
   return { seeded: true, transactions: txList.length };

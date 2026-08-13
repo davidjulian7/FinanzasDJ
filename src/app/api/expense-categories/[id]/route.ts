@@ -15,11 +15,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
     const { nombre, icono, color, budgetGroupId, activo } = body;
 
-    const existing = db
-      .select()
-      .from(expenseCategories)
-      .where(and(eq(expenseCategories.id, Number(id)), eq(expenseCategories.userId, user.id)))
-      .all()[0];
+    const existing = (
+      await db
+        .select()
+        .from(expenseCategories)
+        .where(and(eq(expenseCategories.id, Number(id)), eq(expenseCategories.userId, user.id)))
+        .execute()
+    )[0];
     if (!existing) {
       return apiError("Categoría no encontrada");
     }
@@ -29,12 +31,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (icono !== undefined) updateData.icono = icono;
     if (color !== undefined) updateData.color = color;
     if (budgetGroupId !== undefined) updateData.budgetGroupId = budgetGroupId ?? null;
-    if (activo !== undefined) updateData.activo = activo ? 1 : 0;
+    if (activo !== undefined) updateData.activo = activo ? true : false;
 
-    db.update(expenseCategories)
+    await db
+      .update(expenseCategories)
       .set(updateData)
       .where(and(eq(expenseCategories.id, Number(id)), eq(expenseCategories.userId, user.id)))
-      .run();
+      .execute();
 
     return NextResponse.json({ ok: true });
   } catch (e) {

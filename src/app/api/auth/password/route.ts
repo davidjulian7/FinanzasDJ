@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { apiError, unauthorized } from "@/lib/api-server";
-import { getSessionUser, hashPassword, verifyPassword } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +17,16 @@ export async function POST(req: NextRequest) {
   if (nueva.length < 8) return apiError("La contraseña debe tener al menos 8 caracteres");
   if (nueva === actual) return apiError("La contraseña nueva debe ser distinta a la actual");
 
-  const row = db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, user.id)).get();
-  if (!row || !verifyPassword(actual, row.passwordHash)) {
-    return apiError("La contraseña actual es incorrecta", 401);
-  }
+  const supabase = await createServerSupabaseClient();
 
-  db.update(users).set({ passwordHash: hashPassword(nueva) }).where(eq(users.id, user.id)).run();
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: actual,
+  });
+  if (reauthError) return apiError("La contraseña actual es incorrecta", 401);
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: nueva });
+  if (updateError) return apiError("No se pudo cambiar la contraseña", 500);
+
   return NextResponse.json({ ok: true });
 }

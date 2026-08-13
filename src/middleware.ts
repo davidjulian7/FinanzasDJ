@@ -1,45 +1,41 @@
-import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
-const SESSION_COOKIE = "finanzas_session";
 const LOGIN_PATH = "/login";
 const PUBLIC_API = ["/api/auth/login", "/api/auth/logout", "/api/auth/me"];
-
-function getSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("AUTH_SECRET es requerido en producción.");
-    }
-  }
-  return new TextEncoder().encode(secret ?? "dev-only-secret-finanzasdj");
-}
-
-async function isAuthed(req: NextRequest): Promise<boolean> {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) return false;
-  try {
-    await jwtVerify(token, getSecret());
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (PUBLIC_API.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
+  const res = NextResponse.next();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => req.cookies.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+        },
+      },
+    }
+  );
 
-  const authed = await isAuthed(req);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const authed = !!user;
+
+  if (PUBLIC_API.some((p) => pathname.startsWith(p))) {
+    return res;
+  }
 
   if (pathname === LOGIN_PATH) {
     if (authed) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
-    return NextResponse.next();
+    return res;
   }
 
   if (!authed) {
@@ -51,7 +47,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {

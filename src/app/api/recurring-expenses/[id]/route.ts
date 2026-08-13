@@ -15,11 +15,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
     const { nombre, monto, frecuencia, proximoCobro, expenseCategoryId, accountId, budgetGroupId, nota, activo } = body;
 
-    const existing = db
-      .select()
-      .from(recurringExpenses)
-      .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
-      .all()[0];
+    const existing = (
+      await db
+        .select()
+        .from(recurringExpenses)
+        .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
+        .execute()
+    )[0];
     if (!existing) {
       return apiError("Gasto recurrente no encontrado");
     }
@@ -33,12 +35,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (accountId !== undefined) updateData.accountId = accountId;
     if (budgetGroupId !== undefined) updateData.budgetGroupId = budgetGroupId;
     if (nota !== undefined) updateData.nota = nota ?? null;
-    if (activo !== undefined) updateData.activo = activo ? 1 : 0;
+    if (activo !== undefined) updateData.activo = activo ? true : false;
 
-    db.update(recurringExpenses)
+    await db
+      .update(recurringExpenses)
       .set(updateData)
       .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
-      .run();
+      .execute();
 
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -53,16 +56,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id } = await params;
     const recId = Number(id);
 
-    const existing = db
-      .select()
-      .from(recurringExpenses)
-      .where(and(eq(recurringExpenses.id, recId), eq(recurringExpenses.userId, user.id)))
-      .all()[0];
+    const existing = (
+      await db
+        .select()
+        .from(recurringExpenses)
+        .where(and(eq(recurringExpenses.id, recId), eq(recurringExpenses.userId, user.id)))
+        .execute()
+    )[0];
     if (!existing) {
       return apiError("Gasto recurrente no encontrado");
     }
 
-    db.delete(recurringExpenses).where(and(eq(recurringExpenses.id, recId), eq(recurringExpenses.userId, user.id))).run();
+    await db.delete(recurringExpenses).where(and(eq(recurringExpenses.id, recId), eq(recurringExpenses.userId, user.id))).execute();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return handleError(e);

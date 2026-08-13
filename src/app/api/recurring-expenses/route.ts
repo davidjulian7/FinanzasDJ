@@ -16,20 +16,20 @@ export async function GET(req: NextRequest) {
   const conds = [eq(recurringExpenses.userId, user.id)];
   if (activoOnly) conds.push(eq(recurringExpenses.activo, true));
 
-  const items = db
-    .select()
-    .from(recurringExpenses)
-    .where(and(...conds))
-    .orderBy(desc(recurringExpenses.activo), recurringExpenses.nombre)
-    .all();
+  const [items, cats, accs, groups] = await Promise.all([
+    db
+      .select()
+      .from(recurringExpenses)
+      .where(and(...conds))
+      .orderBy(desc(recurringExpenses.activo), recurringExpenses.nombre)
+      .execute(),
+    db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
+    db.select().from(accounts).where(eq(accounts.userId, user.id)).execute(),
+    db.select().from(budgetGroups).execute(),
+  ]);
 
-  const cats = db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).all();
   const catById = new Map(cats.map((c) => [c.id, c]));
-
-  const accs = db.select().from(accounts).where(eq(accounts.userId, user.id)).all();
   const accById = new Map(accs.map((a) => [a.id, a]));
-
-  const groups = db.select().from(budgetGroups).all();
   const groupById = new Map(groups.map((g) => [g.id, g]));
 
   const withRelations = items.map((r) => ({
@@ -53,22 +53,24 @@ export async function POST(req: NextRequest) {
       return apiError("Todos los campos son requeridos");
     }
 
-    const result = db
-      .insert(recurringExpenses)
-      .values({
-        userId: user.id,
-        nombre,
-        monto,
-        frecuencia,
-        proximoCobro,
-        expenseCategoryId,
-        accountId,
-        budgetGroupId,
-        nota: nota ?? null,
-        activo: true,
-      })
-      .returning({ id: recurringExpenses.id })
-      .all()[0];
+    const result = (
+      await db
+        .insert(recurringExpenses)
+        .values({
+          userId: user.id,
+          nombre,
+          monto,
+          frecuencia,
+          proximoCobro,
+          expenseCategoryId,
+          accountId,
+          budgetGroupId,
+          nota: nota ?? null,
+          activo: true,
+        })
+        .returning({ id: recurringExpenses.id })
+        .execute()
+    )[0];
 
     return NextResponse.json({ id: result.id });
   } catch (e) {

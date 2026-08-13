@@ -1,33 +1,32 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
+import {
+  pgTable,
+  text,
+  integer,
+  boolean,
+  doublePrecision,
+  uuid,
+  serial,
+  index,
+  uniqueIndex,
+  primaryKey,
+} from "drizzle-orm/pg-core";
 
-export const users = sqliteTable(
-  "users",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    nombre: text("nombre").notNull(),
-    email: text("email").notNull(),
-    passwordHash: text("password_hash").notNull(),
-    createdAt: text("created_at").notNull(),
-  },
-  (t) => [uniqueIndex("uq_users_email").on(t.email)]
-);
-
-export const accounts = sqliteTable("accounts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").references(() => users.id),
+export const accounts = pgTable("accounts", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id"),
   nombre: text("nombre").notNull(),
   tipo: text("tipo", { enum: ["debito", "credito", "efectivo", "inversion"] }).notNull(),
-  saldoActual: real("saldo_actual").notNull().default(0),
-  saldoInicial: real("saldo_inicial").notNull().default(0),
-  limiteCredito: real("limite_credito"),
+  saldoActual: doublePrecision("saldo_actual").notNull().default(0),
+  saldoInicial: doublePrecision("saldo_inicial").notNull().default(0),
+  limiteCredito: doublePrecision("limite_credito"),
   fechaCorte: integer("fecha_corte"),
   fechaPago: integer("fecha_pago"),
   color: text("color").notNull().default("#7C3AED"),
   icono: text("icono").notNull().default("Wallet"),
 });
 
-export const budgetGroups = sqliteTable("budget_groups", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const budgetGroups = pgTable("budget_groups", {
+  id: serial("id").primaryKey(),
   key: text("key", { enum: ["necesidades", "deseos", "ahorro"] }).notNull().unique(),
   label: text("label").notNull(),
   color: text("color").notNull(),
@@ -35,22 +34,22 @@ export const budgetGroups = sqliteTable("budget_groups", {
   orden: integer("orden").notNull().default(0),
 });
 
-export const expenseCategories = sqliteTable("expense_categories", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").references(() => users.id),
+export const expenseCategories = pgTable("expense_categories", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id"),
   nombre: text("nombre").notNull(),
   icono: text("icono").notNull().default("Tag"),
   color: text("color").notNull().default("#7C3AED"),
   tipo: text("tipo", { enum: ["gasto", "ingreso"] }).notNull().default("gasto"),
   budgetGroupId: integer("budget_group_id").references(() => budgetGroups.id),
-  activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+  activo: boolean("activo").notNull().default(true),
 });
 
-export const recurringExpenses = sqliteTable("recurring_expenses", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").references(() => users.id),
+export const recurringExpenses = pgTable("recurring_expenses", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id"),
   nombre: text("nombre").notNull(),
-  monto: real("monto").notNull(),
+  monto: doublePrecision("monto").notNull(),
   frecuencia: text("frecuencia", { enum: ["semanal", "quincenal", "mensual", "anual"] }).notNull(),
   proximoCobro: text("proximo_cobro").notNull(),
   expenseCategoryId: integer("expense_category_id")
@@ -63,16 +62,16 @@ export const recurringExpenses = sqliteTable("recurring_expenses", {
     .notNull()
     .references(() => budgetGroups.id),
   nota: text("nota"),
-  activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+  activo: boolean("activo").notNull().default(true),
 });
 
-export const transactions = sqliteTable(
+export const transactions = pgTable(
   "transactions",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id").references(() => users.id),
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id"),
     descripcion: text("descripcion").notNull(),
-    monto: real("monto").notNull(),
+    monto: doublePrecision("monto").notNull(),
     tipo: text("tipo", { enum: ["gasto", "ingreso", "transferencia"] }).notNull(),
     accountId: integer("account_id")
       .notNull()
@@ -92,14 +91,14 @@ export const transactions = sqliteTable(
   ]
 );
 
-export const apartados = sqliteTable(
+export const apartados = pgTable(
   "apartados",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id").references(() => users.id),
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id"),
     nombre: text("nombre").notNull(),
-    montoObjetivo: real("monto_objetivo").notNull(),
-    montoQuincena: real("monto_quincena"),
+    montoObjetivo: doublePrecision("monto_objetivo").notNull(),
+    montoQuincena: doublePrecision("monto_quincena"),
     periodicidad: text("periodicidad", { enum: ["mensual", "anual"] }).notNull(),
     diaPago: integer("dia_pago").notNull(),
     mesPago: integer("mes_pago"),
@@ -110,24 +109,24 @@ export const apartados = sqliteTable(
     icono: text("icono").notNull().default("Wallet"),
     color: text("color").notNull().default("#7C3AED"),
     nota: text("nota"),
-    activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+    activo: boolean("activo").notNull().default(true),
     orden: integer("orden").notNull().default(0),
   },
   (t) => [index("idx_apartados_grupo").on(t.budgetGroupId)]
 );
 
-export const apartadoContribuciones = sqliteTable(
+export const apartadoContribuciones = pgTable(
   "apartado_contribuciones",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id").references(() => users.id),
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id"),
     apartadoId: integer("apartado_id")
       .notNull()
       .references(() => apartados.id, { onDelete: "cascade" }),
     anio: integer("anio").notNull(),
     mes: integer("mes").notNull(),
     quincena: integer("quincena").notNull(),
-    monto: real("monto").notNull(),
+    monto: doublePrecision("monto").notNull(),
     fecha: text("fecha").notNull(),
   },
   (t) => [
@@ -136,31 +135,31 @@ export const apartadoContribuciones = sqliteTable(
   ]
 );
 
-export const debts = sqliteTable("debts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").references(() => users.id),
+export const debts = pgTable("debts", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id"),
   nombre: text("nombre").notNull(),
   tipo: text("tipo", { enum: ["por_pagar", "por_cobrar"] }).notNull(),
   personaOAcreedor: text("persona_o_acreedor").notNull(),
-  montoOriginal: real("monto_original").notNull(),
-  saldoPendiente: real("saldo_pendiente").notNull(),
+  montoOriginal: doublePrecision("monto_original").notNull(),
+  saldoPendiente: doublePrecision("saldo_pendiente").notNull(),
   fechaInicio: text("fecha_inicio").notNull(),
 });
 
-export const cuotas = sqliteTable(
+export const cuotas = pgTable(
   "cuotas",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id").references(() => users.id),
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id"),
     accountId: integer("account_id")
       .notNull()
       .references(() => accounts.id),
     descripcion: text("descripcion").notNull(),
-    monto: real("monto").notNull(),
+    monto: doublePrecision("monto").notNull(),
     meses: integer("meses").notNull(),
-    tasaAnual: real("tasa_anual").notNull().default(0),
-    cuota: real("cuota").notNull(),
-    total: real("total").notNull(),
+    tasaAnual: doublePrecision("tasa_anual").notNull().default(0),
+    cuota: doublePrecision("cuota").notNull(),
+    total: doublePrecision("total").notNull(),
     pagadas: integer("pagadas").notNull().default(0),
     fecha: text("fecha").notNull(),
     transactionId: integer("transaction_id")
@@ -170,18 +169,15 @@ export const cuotas = sqliteTable(
   (t) => [index("idx_cuotas_account").on(t.accountId)]
 );
 
-export const settings = sqliteTable(
+export const settings = pgTable(
   "settings",
   {
-    userId: integer("user_id").references(() => users.id),
+    userId: uuid("user_id"),
     key: text("key").notNull(),
     value: text("value").notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.key] })]
 );
-
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
 
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;

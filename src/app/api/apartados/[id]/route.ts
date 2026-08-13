@@ -29,11 +29,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!user) return unauthorized();
     const { id } = await params;
     const apartadoId = Number(id);
-    const actual = db
-      .select()
-      .from(apartados)
-      .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
-      .get();
+    const actual = (
+      await db
+        .select()
+        .from(apartados)
+        .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
+        .execute()
+    )[0];
     if (!actual) return apiError("Apartado no encontrado", 404);
 
     const body = await req.json();
@@ -83,7 +85,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (Object.keys(set).length === 0) return apiError("No hay campos para actualizar");
 
-    db.update(apartados).set(set).where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id))).run();
+    await db.update(apartados).set(set).where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id))).execute();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return handleError(e);
@@ -96,22 +98,26 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (!user) return unauthorized();
     const { id } = await params;
     const apartadoId = Number(id);
-    const actual = db
-      .select()
-      .from(apartados)
-      .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
-      .get();
+    const actual = (
+      await db
+        .select()
+        .from(apartados)
+        .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
+        .execute()
+    )[0];
     if (!actual) return apiError("Apartado no encontrado", 404);
 
-    db.transaction((tx) => {
-      tx.update(transactions)
+    await db.transaction(async (tx) => {
+      await tx
+        .update(transactions)
         .set({ apartadoId: null })
         .where(and(eq(transactions.apartadoId, apartadoId), eq(transactions.userId, user.id)))
-        .run();
-      tx.delete(apartadoContribuciones)
+        .execute();
+      await tx
+        .delete(apartadoContribuciones)
         .where(and(eq(apartadoContribuciones.apartadoId, apartadoId), eq(apartadoContribuciones.userId, user.id)))
-        .run();
-      tx.delete(apartados).where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id))).run();
+        .execute();
+      await tx.delete(apartados).where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id))).execute();
     });
     return NextResponse.json({ ok: true });
   } catch (e) {

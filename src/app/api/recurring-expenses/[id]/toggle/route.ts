@@ -13,20 +13,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!user) return unauthorized();
     const { id } = await params;
 
-    const existing = db
-      .select()
-      .from(recurringExpenses)
-      .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
-      .all()[0];
+    const existing = (
+      await db
+        .select()
+        .from(recurringExpenses)
+        .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
+        .execute()
+    )[0];
     if (!existing) {
       return apiError("Gasto recurrente no encontrado");
     }
 
     const newActivo = existing.activo ? false : true;
-    db.update(recurringExpenses)
+    await db
+      .update(recurringExpenses)
       .set({ activo: newActivo })
       .where(and(eq(recurringExpenses.id, Number(id)), eq(recurringExpenses.userId, user.id)))
-      .run();
+      .execute();
 
     return NextResponse.json({ ok: true, activo: newActivo });
   } catch (e) {

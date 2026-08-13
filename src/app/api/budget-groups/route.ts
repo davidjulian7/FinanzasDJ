@@ -9,6 +9,6 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await requireUser();
   if (!user) return unauthorized();
-  const groups = db.select().from(budgetGroups).all();
+  const groups = await db.select().from(budgetGroups).execute();
   return NextResponse.json(groups);
 }

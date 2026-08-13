@@ -71,36 +71,39 @@ function validar(input: TxInput) {
   }
 }
 
-function cuentaDe(userId: number, id: number) {
-  return db
+async function cuentaDe(userId: string, id: number) {
+  const rows = await db
     .select()
     .from(accounts)
     .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
-    .get();
+    .execute();
+  return rows[0] ?? null;
 }
 
-export function crearTransaccion(userId: number, input: TxInput) {
+export async function crearTransaccion(userId: string, input: TxInput) {
   validar(input);
-  const origen = cuentaDe(userId, input.accountId);
+  const origen = await cuentaDe(userId, input.accountId);
   if (!origen) throw new Error("Cuenta no encontrada");
   if (input.tipo === "gasto" || input.tipo === "transferencia") verificarFondos(origen, input.monto);
   let destino = null;
   if (input.tipo === "transferencia" && input.accountDestinoId) {
-    destino = cuentaDe(userId, input.accountDestinoId);
+    destino = await cuentaDe(userId, input.accountDestinoId);
     if (!destino) throw new Error("Cuenta destino no encontrada");
   }
-  return db.transaction((tx) => {
-    tx.update(accounts)
+  return db.transaction(async (tx) => {
+    await tx
+      .update(accounts)
       .set({ saldoActual: origen.saldoActual + input.monto * deltaOrigen(origen, input.tipo) })
       .where(and(eq(accounts.id, origen.id), eq(accounts.userId, userId)))
-      .run();
+      .execute();
     if (destino) {
-      tx.update(accounts)
+      await tx
+        .update(accounts)
         .set({ saldoActual: destino.saldoActual + input.monto * deltaDestino(destino) })
         .where(and(eq(accounts.id, destino.id), eq(accounts.userId, userId)))
-        .run();
+        .execute();
     }
-    return tx
+    const rows = await tx
       .insert(transactions)
       .values({
         userId,
@@ -115,39 +118,44 @@ export function crearTransaccion(userId: number, input: TxInput) {
         notas: input.notas?.trim() || null,
       })
       .returning({ id: transactions.id })
-      .all()[0];
+      .execute();
+    return rows[0];
   });
 }
 
-export function actualizarTransaccion(userId: number, id: number, input: TxInput) {
+export async function actualizarTransaccion(userId: string, id: number, input: TxInput) {
   validar(input);
-  const actual = db
+  const rows = await db
     .select()
     .from(transactions)
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
-    .get();
+    .execute();
+  const actual = rows[0];
   if (!actual) throw new Error("Transacción no encontrada");
-  return db.transaction((tx) => {
-    revertir(tx, actual);
-    const origen = cuentaDe(userId, input.accountId);
+  return db.transaction(async (tx) => {
+    await revertir(tx, actual);
+    const origen = await cuentaDe(userId, input.accountId);
     if (!origen) throw new Error("Cuenta no encontrada");
     let destino = null;
     if (input.tipo === "transferencia" && input.accountDestinoId) {
-      destino = cuentaDe(userId, input.accountDestinoId);
+      destino = await cuentaDe(userId, input.accountDestinoId);
       if (!destino) throw new Error("Cuenta destino no encontrada");
     }
     if (input.tipo === "gasto" || input.tipo === "transferencia") verificarFondos(origen, input.monto);
-    tx.update(accounts)
+    await tx
+      .update(accounts)
       .set({ saldoActual: origen.saldoActual + input.monto * deltaOrigen(origen, input.tipo) })
       .where(and(eq(accounts.id, origen.id), eq(accounts.userId, userId)))
-      .run();
+      .execute();
     if (destino) {
-      tx.update(accounts)
+      await tx
+        .update(accounts)
         .set({ saldoActual: destino.saldoActual + input.monto * deltaDestino(destino) })
         .where(and(eq(accounts.id, destino.id), eq(accounts.userId, userId)))
-        .run();
+        .execute();
     }
-    tx.update(transactions)
+    await tx
+      .update(transactions)
       .set({
         descripcion: input.descripcion.trim(),
         monto: input.monto,
@@ -160,41 +168,46 @@ export function actualizarTransaccion(userId: number, id: number, input: TxInput
         notas: input.notas?.trim() || null,
       })
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
-      .run();
+      .execute();
   });
 }
 
-export function eliminarTransaccion(userId: number, id: number) {
-  const actual = db
+export async function eliminarTransaccion(userId: string, id: number) {
+  const rows = await db
     .select()
     .from(transactions)
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
-    .get();
+    .execute();
+  const actual = rows[0];
   if (!actual) throw new Error("Transacción no encontrada");
-  db.transaction((tx) => {
-    revertir(tx, actual);
-    tx.delete(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId))).run();
+  await db.transaction(async (tx) => {
+    await revertir(tx, actual);
+    await tx.delete(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId))).execute();
   });
 }
 
 type TxLike = typeof transactions.$inferSelect;
-type DbSession = Pick<typeof db, "update" | "select">;
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function revertir(tx: DbSession, t: TxLike) {
-  const origen = tx.select().from(accounts).where(eq(accounts.id, t.accountId)).get();
+async function revertir(tx: Tx, t: TxLike) {
+  const origenRows = await tx.select().from(accounts).where(eq(accounts.id, t.accountId)).execute();
+  const origen = origenRows[0];
   if (origen) {
-    tx.update(accounts)
+    await tx
+      .update(accounts)
       .set({ saldoActual: origen.saldoActual - t.monto * deltaOrigen(origen, t.tipo) })
       .where(eq(accounts.id, origen.id))
-      .run();
+      .execute();
   }
   if (t.accountDestinoId) {
-    const destino = tx.select().from(accounts).where(eq(accounts.id, t.accountDestinoId)).get();
+    const destinoRows = await tx.select().from(accounts).where(eq(accounts.id, t.accountDestinoId)).execute();
+    const destino = destinoRows[0];
     if (destino) {
-      tx.update(accounts)
+      await tx
+        .update(accounts)
         .set({ saldoActual: destino.saldoActual - t.monto * deltaDestino(destino) })
         .where(eq(accounts.id, destino.id))
-        .run();
+        .execute();
     }
   }
 }
@@ -216,9 +229,9 @@ function numOrNull(v: number | string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function crearCuenta(userId: number, input: AccountInput) {
+export async function crearCuenta(userId: string, input: AccountInput) {
   if (!input.nombre?.trim()) throw new Error("El nombre es obligatorio");
-  return db
+  const rows = await db
     .insert(accounts)
     .values({
       userId,
@@ -233,14 +246,16 @@ export function crearCuenta(userId: number, input: AccountInput) {
       icono: input.icono ?? "Wallet",
     })
     .returning({ id: accounts.id })
-    .all()[0];
+    .execute();
+  return rows[0];
 }
 
-export function actualizarCuenta(userId: number, id: number, input: AccountInput) {
-  const actual = cuentaDe(userId, id);
+export async function actualizarCuenta(userId: string, id: number, input: AccountInput) {
+  const actual = await cuentaDe(userId, id);
   if (!actual) throw new Error("Cuenta no encontrada");
   if (!input.nombre?.trim()) throw new Error("El nombre es obligatorio");
-  db.update(accounts)
+  await db
+    .update(accounts)
     .set({
       nombre: input.nombre.trim(),
       tipo: input.tipo,
@@ -252,57 +267,65 @@ export function actualizarCuenta(userId: number, id: number, input: AccountInput
       icono: input.icono ?? "Wallet",
     })
     .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
-    .run();
+    .execute();
 }
 
-export function eliminarCuenta(userId: number, id: number) {
-  const n = db
-    .select({ id: transactions.id })
-    .from(transactions)
-    .where(and(eq(transactions.accountId, id), eq(transactions.userId, userId)))
-    .all().length;
+export async function eliminarCuenta(userId: string, id: number) {
+  const n = (
+    await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(and(eq(transactions.accountId, id), eq(transactions.userId, userId)))
+      .execute()
+  ).length;
   if (n > 0) throw new Error("Esta cuenta tiene transacciones asociadas. Eliminalas primero.");
-  const n2 = db
-    .select({ id: transactions.id })
-    .from(transactions)
-    .where(and(eq(transactions.accountDestinoId, id), eq(transactions.userId, userId)))
-    .all().length;
+  const n2 = (
+    await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(and(eq(transactions.accountDestinoId, id), eq(transactions.userId, userId)))
+      .execute()
+  ).length;
   if (n2 > 0) throw new Error("Esta cuenta es destino de transferencias. Eliminalas primero.");
-  db.delete(accounts).where(and(eq(accounts.id, id), eq(accounts.userId, userId))).run();
+  await db.delete(accounts).where(and(eq(accounts.id, id), eq(accounts.userId, userId))).execute();
 }
 
-export function registrarPagoDeuda(
-  userId: number,
+export async function registrarPagoDeuda(
+  userId: string,
   debtId: number,
   monto: number,
   cuentaId?: number | null
 ) {
-  const debt = db
+  const debtRows = await db
     .select()
     .from(debts)
     .where(and(eq(debts.id, debtId), eq(debts.userId, userId)))
-    .get();
+    .execute();
+  const debt = debtRows[0];
   if (!debt) throw new Error("Deuda no encontrada");
   if (!Number.isFinite(monto) || monto <= 0) throw new Error("El monto debe ser mayor a cero");
   if (monto > debt.saldoPendiente + 0.001) throw new Error("El monto supera el saldo pendiente");
 
-  db.transaction((tx) => {
+  await db.transaction(async (tx) => {
     const nuevoSaldo = Math.round((debt.saldoPendiente - monto) * 100) / 100;
-    tx.update(debts).set({ saldoPendiente: nuevoSaldo }).where(and(eq(debts.id, debtId), eq(debts.userId, userId))).run();
+    await tx.update(debts).set({ saldoPendiente: nuevoSaldo }).where(and(eq(debts.id, debtId), eq(debts.userId, userId))).execute();
     if (cuentaId) {
       const tipo: TxTipo = debt.tipo === "por_pagar" ? "gasto" : "ingreso";
-      const cuenta = tx
+      const cuentaRows = await tx
         .select()
         .from(accounts)
         .where(and(eq(accounts.id, cuentaId), eq(accounts.userId, userId)))
-        .get();
+        .execute();
+      const cuenta = cuentaRows[0];
       if (!cuenta) throw new Error("Cuenta no encontrada");
       if (tipo === "gasto") verificarFondos(cuenta, monto);
-      tx.update(accounts)
+      await tx
+        .update(accounts)
         .set({ saldoActual: cuenta.saldoActual + monto * deltaOrigen(cuenta, tipo) })
         .where(and(eq(accounts.id, cuenta.id), eq(accounts.userId, userId)))
-        .run();
-      tx.insert(transactions)
+        .execute();
+      await tx
+        .insert(transactions)
         .values({
           userId,
           descripcion: `${debt.tipo === "por_pagar" ? "Pago de deuda" : "Cobro de deuda"}: ${debt.nombre}`,
@@ -313,7 +336,7 @@ export function registrarPagoDeuda(
           fecha: isoDate(new Date()),
           notas: `Deuda: ${debt.nombre}`,
         })
-        .run();
+        .execute();
     }
   });
 }
@@ -345,19 +368,19 @@ export function calcularCuota(monto: number, meses: number, tasaAnual: number): 
   return { cuota, total: redondear(cuota * meses) };
 }
 
-export function crearCuota(userId: number, input: CuotaInput) {
+export async function crearCuota(userId: string, input: CuotaInput) {
   if (!input.descripcion?.trim()) throw new Error("La descripción es obligatoria");
   if (!Number.isFinite(input.monto) || input.monto <= 0) throw new Error("El monto debe ser mayor a cero");
   if (!Number.isInteger(input.meses) || input.meses < 1 || input.meses > 48) {
     throw new Error("Los meses deben ser un número entre 1 y 48");
   }
   if (!Number.isFinite(input.tasaAnual) || input.tasaAnual < 0) throw new Error("La tasa debe ser mayor o igual a cero");
-  const cuenta = cuentaDe(userId, input.accountId);
+  const cuenta = await cuentaDe(userId, input.accountId);
   if (!cuenta) throw new Error("Cuenta no encontrada");
   if (!credito(cuenta)) throw new Error("La compra a meses solo puede registrarse en una tarjeta de crédito");
   const { cuota, total } = calcularCuota(input.monto, input.meses, input.tasaAnual);
 
-  const gasto = crearTransaccion(userId, {
+  const gasto = await crearTransaccion(userId, {
     descripcion: `${input.descripcion.trim()} (a ${input.meses} meses)`,
     monto: input.monto,
     tipo: "gasto",
@@ -366,7 +389,7 @@ export function crearCuota(userId: number, input: CuotaInput) {
     fecha: input.fecha || isoDate(new Date()),
     notas: `Compra a meses · ${input.meses} meses${input.tasaAnual > 0 ? ` · ${input.tasaAnual}% anual` : " · sin intereses"}`,
   });
-  const row = db
+  const rows = await db
     .insert(cuotas)
     .values({
       userId,
@@ -382,24 +405,25 @@ export function crearCuota(userId: number, input: CuotaInput) {
       transactionId: gasto.id,
     })
     .returning({ id: cuotas.id })
-    .all()[0];
-  return { id: row.id, cuota, total, transactionId: gasto.id };
+    .execute();
+  return { id: rows[0].id, cuota, total, transactionId: gasto.id };
 }
 
 // Aplica un pago de tarjeta a las compras a meses: marca como pagadas las cuotas
 // completas que el monto alcanza a cubrir, empezando por la compra más antigua.
-export function pagarCuotasConMonto(
-  userId: number,
+export async function pagarCuotasConMonto(
+  userId: string,
   accountId: number,
   monto: number
-): { marcadas: number; montoAplicado: number; detalle: { id: number; descripcion: string; marcadas: number; cuota: number }[] } {
-  const planes = db
-    .select()
-    .from(cuotas)
-    .where(and(eq(cuotas.accountId, accountId), eq(cuotas.userId, userId)))
-    .orderBy(asc(cuotas.fecha), asc(cuotas.id))
-    .all()
-    .filter((c) => c.pagadas < c.meses);
+): Promise<{ marcadas: number; montoAplicado: number; detalle: { id: number; descripcion: string; marcadas: number; cuota: number }[] }> {
+  const planes = (
+    await db
+      .select()
+      .from(cuotas)
+      .where(and(eq(cuotas.accountId, accountId), eq(cuotas.userId, userId)))
+      .orderBy(asc(cuotas.fecha), asc(cuotas.id))
+      .execute()
+  ).filter((c) => c.pagadas < c.meses);
   let restante = redondear(monto);
   const detalle: { id: number; descripcion: string; marcadas: number; cuota: number }[] = [];
   let marcadas = 0;
@@ -408,7 +432,7 @@ export function pagarCuotasConMonto(
     const restantes = p.meses - p.pagadas;
     const pagables = Math.min(restantes, Math.floor((restante + 0.0001) / p.cuota));
     if (pagables <= 0) continue;
-    db.update(cuotas).set({ pagadas: p.pagadas + pagables }).where(and(eq(cuotas.id, p.id), eq(cuotas.userId, userId))).run();
+    await db.update(cuotas).set({ pagadas: p.pagadas + pagables }).where(and(eq(cuotas.id, p.id), eq(cuotas.userId, userId))).execute();
     restante = redondear(restante - pagables * p.cuota);
     marcadas += pagables;
     detalle.push({ id: p.id, descripcion: p.descripcion, marcadas: pagables, cuota: p.cuota });
@@ -416,19 +440,20 @@ export function pagarCuotasConMonto(
   return { marcadas, montoAplicado: redondear(monto - restante), detalle };
 }
 
-export function pagarCuota(userId: number, id: number, cuentaPagoId: number) {
-  const cuota = db
+export async function pagarCuota(userId: string, id: number, cuentaPagoId: number) {
+  const cuotaRows = await db
     .select()
     .from(cuotas)
     .where(and(eq(cuotas.id, id), eq(cuotas.userId, userId)))
-    .get();
+    .execute();
+  const cuota = cuotaRows[0];
   if (!cuota) throw new Error("Compra a meses no encontrada");
   if (cuota.pagadas >= cuota.meses) throw new Error("Todas las cuotas ya fueron pagadas");
-  const origen = cuentaDe(userId, cuentaPagoId);
+  const origen = await cuentaDe(userId, cuentaPagoId);
   if (!origen) throw new Error("Cuenta de pago no encontrada");
   if (credito(origen)) throw new Error("La cuenta de pago debe ser de débito");
 
-  const tx = crearTransaccion(userId, {
+  const tx = await crearTransaccion(userId, {
     descripcion: `Pago cuota ${cuota.pagadas + 1}/${cuota.meses}: ${cuota.descripcion}`,
     monto: cuota.cuota,
     tipo: "transferencia",
@@ -439,18 +464,19 @@ export function pagarCuota(userId: number, id: number, cuentaPagoId: number) {
     notas: `Cuota de compra a meses`,
   });
 
-  db.update(cuotas).set({ pagadas: cuota.pagadas + 1 }).where(and(eq(cuotas.id, id), eq(cuotas.userId, userId))).run();
+  await db.update(cuotas).set({ pagadas: cuota.pagadas + 1 }).where(and(eq(cuotas.id, id), eq(cuotas.userId, userId))).execute();
   return { transactionId: tx.id, pagadas: cuota.pagadas + 1 };
 }
 
-export function eliminarCuota(userId: number, id: number) {
-  const cuota = db
+export async function eliminarCuota(userId: string, id: number) {
+  const cuotaRows = await db
     .select()
     .from(cuotas)
     .where(and(eq(cuotas.id, id), eq(cuotas.userId, userId)))
-    .get();
+    .execute();
+  const cuota = cuotaRows[0];
   if (!cuota) throw new Error("Compra a meses no encontrada");
   if (cuota.pagadas > 0) throw new Error("No se puede eliminar: ya hay cuotas pagadas");
-  db.delete(cuotas).where(and(eq(cuotas.id, id), eq(cuotas.userId, userId))).run();
-  eliminarTransaccion(userId, cuota.transactionId);
+  await db.delete(cuotas).where(and(eq(cuotas.id, id), eq(cuotas.userId, userId))).execute();
+  await eliminarTransaccion(userId, cuota.transactionId);
 }

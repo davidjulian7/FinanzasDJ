@@ -14,18 +14,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!user) return unauthorized();
     const { id } = await params;
     const apartadoId = Number(id);
-    const apartado = db
-      .select()
-      .from(apartados)
-      .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
-      .get();
+    const apartado = (
+      await db
+        .select()
+        .from(apartados)
+        .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
+        .execute()
+    )[0];
     if (!apartado) return apiError("Apartado no encontrado", 404);
 
     const body = await req.json();
     const monto = Number(body.monto);
     if (!Number.isFinite(monto) || monto <= 0) return apiError("El monto debe ser mayor a cero");
 
-    const result = crearTransaccion(user.id, {
+    const result = await crearTransaccion(user.id, {
       descripcion: body.descripcion?.trim() || `Pago: ${apartado.nombre}`,
       monto,
       tipo: "gasto",

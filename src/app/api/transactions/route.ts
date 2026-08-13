@@ -28,15 +28,16 @@ export async function GET(req: NextRequest) {
   }
 
   const where = and(...conds);
-  const rows = db.select().from(transactions).where(where).orderBy(desc(transactions.fecha), desc(transactions.id)).all();
-
-  const cuentas = db.select().from(accounts).where(eq(accounts.userId, user.id)).all();
+  const [rows, cuentas, cats, groups, apart] = await Promise.all([
+    db.select().from(transactions).where(where).orderBy(desc(transactions.fecha), desc(transactions.id)).execute(),
+    db.select().from(accounts).where(eq(accounts.userId, user.id)).execute(),
+    db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
+    db.select().from(budgetGroups).execute(),
+    db.select().from(apartados).where(eq(apartados.userId, user.id)).execute(),
+  ]);
   const cuentaById = new Map(cuentas.map((c) => [c.id, c]));
-  const cats = db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).all();
   const catById = new Map(cats.map((c) => [c.id, c]));
-  const groups = db.select().from(budgetGroups).all();
   const groupById = new Map(groups.map((g) => [g.id, g]));
-  const apart = db.select().from(apartados).where(eq(apartados.userId, user.id)).all();
   const apartById = new Map(apart.map((a) => [a.id, a]));
 
   return NextResponse.json(
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user) return unauthorized();
     const body = (await req.json()) as Partial<TxInput>;
-    const id = crearTransaccion(user.id, {
+    const id = await crearTransaccion(user.id, {
       descripcion: body.descripcion ?? "",
       monto: Number(body.monto),
       tipo: (body.tipo ?? "gasto") as TxInput["tipo"],

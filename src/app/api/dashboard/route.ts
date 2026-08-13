@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
   if (!user) return unauthorized();
   const from = req.nextUrl.searchParams.get("from") ?? "1970-01-01";
   const to = req.nextUrl.searchParams.get("to") ?? "2099-12-31";
-  const data = getDashboard(user.id, { from, to });
+  const data = await getDashboard(user.id, { from, to });
   return NextResponse.json(data);
 }

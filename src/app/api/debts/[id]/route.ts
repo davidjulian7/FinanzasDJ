@@ -13,13 +13,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!user) return unauthorized();
     const { id } = await params;
     const body = await req.json();
-    const actual = db
-      .select()
-      .from(debts)
-      .where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id)))
-      .get();
+    const actual = (
+      await db
+        .select()
+        .from(debts)
+        .where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id)))
+        .execute()
+    )[0];
     if (!actual) return apiError("Deuda no encontrada", 404);
-    db.update(debts)
+    await db
+      .update(debts)
       .set({
         nombre: body.nombre ?? actual.nombre,
         personaOAcreedor: body.personaOAcreedor ?? actual.personaOAcreedor,
@@ -28,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         tipo: body.tipo ?? actual.tipo,
       })
       .where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id)))
-      .run();
+      .execute();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return handleError(e);
@@ -40,7 +43,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const user = await requireUser();
     if (!user) return unauthorized();
     const { id } = await params;
-    db.delete(debts).where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id))).run();
+    await db.delete(debts).where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id))).execute();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return handleError(e);

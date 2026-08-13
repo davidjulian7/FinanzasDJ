@@ -20,17 +20,19 @@ export async function GET(req: NextRequest) {
     return apiError("Parámetros mes y año requeridos");
   }
 
-  const groups = db.select().from(budgetGroups).all();
-  const expCats = db
-    .select()
-    .from(expenseCategories)
-    .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
-    .all();
-  const recurrents = db
-    .select()
-    .from(recurringExpenses)
-    .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
-    .all();
+  const [groups, expCats, recurrents] = await Promise.all([
+    db.select().from(budgetGroups).execute(),
+    db
+      .select()
+      .from(expenseCategories)
+      .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
+      .execute(),
+    db
+      .select()
+      .from(recurringExpenses)
+      .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
+      .execute(),
+  ]);
 
   const catsByGroup = new Map<number, typeof expCats>();
   for (const c of expCats) {
@@ -47,8 +49,8 @@ export async function GET(req: NextRequest) {
     recurrentByGroup.set(r.budgetGroupId, arr);
   }
 
-  const regla = getReglaPct(user.id);
-  const ingresosQuincena = getIngresoQuincena(user.id, anio, mes, quincena);
+  const regla = await getReglaPct(user.id);
+  const ingresosQuincena = await getIngresoQuincena(user.id, anio, mes, quincena);
 
   const groupsWithData = groups.map((g) => ({
     ...g,
@@ -91,18 +93,20 @@ export async function POST(req: NextRequest) {
       return apiError("Los porcentajes deben sumar 100%");
     }
 
-    db.transaction((tx) => {
+    await db.transaction(async (tx) => {
       if (ingresosQuincena > 0) {
-        tx.insert(settings)
+        await tx
+          .insert(settings)
           .values({ userId: user.id, key: ingresoKey(anio, mes, quincena), value: JSON.stringify(ingresosQuincena) })
           .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(ingresosQuincena) } })
-          .run();
+          .execute();
       }
 
-      tx.insert(settings)
+      await tx
+        .insert(settings)
         .values({ userId: user.id, key: "regla_pct", value: JSON.stringify(reglaData) })
         .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(reglaData) } })
-        .run();
+        .execute();
     });
 
     return NextResponse.json({ ok: true });

@@ -23,16 +23,18 @@ export async function POST(req: NextRequest) {
     if (!Number.isInteger(mes) || mes < 1 || mes > 12) return apiError("Mes inválido");
     if (quincena !== 1 && quincena !== 2) return apiError("Quincena inválida");
 
-    const apartado = db
-      .select()
-      .from(apartados)
-      .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
-      .get();
+    const apartado = (
+      await db
+        .select()
+        .from(apartados)
+        .where(and(eq(apartados.id, apartadoId), eq(apartados.userId, user.id)))
+        .execute()
+    )[0];
     if (!apartado) return apiError("Apartado no encontrado", 404);
     if (!apartado.activo) return apiError("El apartado está inactivo");
 
     const monto = cuotaEfectiva(apartado);
-    registrarContribucion(user.id, apartadoId, anio, mes, quincena, monto);
+    await registrarContribucion(user.id, apartadoId, anio, mes, quincena, monto);
 
     return NextResponse.json({ ok: true, monto, apartadoId });
   } catch (e) {
@@ -52,7 +54,7 @@ export async function DELETE(req: NextRequest) {
     if (!Number.isInteger(apartadoId) || !Number.isInteger(anio) || !Number.isInteger(mes) || (quincena !== 1 && quincena !== 2)) {
       return apiError("Parámetros inválidos");
     }
-    quitarContribucion(user.id, apartadoId, anio, mes, quincena);
+    await quitarContribucion(user.id, apartadoId, anio, mes, quincena);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return handleError(e);

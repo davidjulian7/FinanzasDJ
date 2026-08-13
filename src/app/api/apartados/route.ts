@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const user = await requireUser();
     if (!user) return unauthorized();
-    return NextResponse.json(cargarApartados(user.id));
+    return NextResponse.json(await cargarApartados(user.id));
   } catch (e) {
     return handleError(e);
   }
@@ -56,26 +56,28 @@ export async function POST(req: NextRequest) {
       fija = Math.round(n * 100) / 100;
     }
 
-    const result = db
-      .insert(apartados)
-      .values({
-        userId: user.id,
-        nombre: nombre.trim(),
-        montoObjetivo: Math.round(objetivo * 100) / 100,
-        montoQuincena: fija,
-        periodicidad,
-        diaPago: dia,
-        mesPago: periodicidad === "anual" ? Number(mesPago) : null,
-        budgetGroupId: budgetGroupId != null ? Number(budgetGroupId) : null,
-        categoriaId: categoriaId != null ? Number(categoriaId) : null,
-        cuentaId: cuentaId != null ? Number(cuentaId) : null,
-        fechaInicio: todayISO(),
-        icono: icono || "Wallet",
-        color: color || "#7C3AED",
-        nota: nota?.trim() || null,
-      })
-      .returning({ id: apartados.id })
-      .all()[0];
+    const result = (
+      await db
+        .insert(apartados)
+        .values({
+          userId: user.id,
+          nombre: nombre.trim(),
+          montoObjetivo: Math.round(objetivo * 100) / 100,
+          montoQuincena: fija,
+          periodicidad,
+          diaPago: dia,
+          mesPago: periodicidad === "anual" ? Number(mesPago) : null,
+          budgetGroupId: budgetGroupId != null ? Number(budgetGroupId) : null,
+          categoriaId: categoriaId != null ? Number(categoriaId) : null,
+          cuentaId: cuentaId != null ? Number(cuentaId) : null,
+          fechaInicio: todayISO(),
+          icono: icono || "Wallet",
+          color: color || "#7C3AED",
+          nota: nota?.trim() || null,
+        })
+        .returning({ id: apartados.id })
+        .execute()
+    )[0];
 
     return NextResponse.json({ id: result.id }, { status: 201 });
   } catch (e) {

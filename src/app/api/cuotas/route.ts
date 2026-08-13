@@ -14,8 +14,10 @@ export async function GET(req: NextRequest) {
   const accountId = req.nextUrl.searchParams.get("account");
   const conds = [eq(cuotas.userId, user.id)];
   if (accountId) conds.push(eq(cuotas.accountId, Number(accountId)));
-  const rows = db.select().from(cuotas).where(and(...conds)).orderBy(desc(cuotas.id)).all();
-  const cuentas = db.select().from(accounts).where(eq(accounts.userId, user.id)).all();
+  const [rows, cuentas] = await Promise.all([
+    db.select().from(cuotas).where(and(...conds)).orderBy(desc(cuotas.id)).execute(),
+    db.select().from(accounts).where(eq(accounts.userId, user.id)).execute(),
+  ]);
   const byId = new Map(cuentas.map((c) => [c.id, c]));
   return NextResponse.json(
     rows.map((c) => ({
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user) return unauthorized();
     const body = (await req.json()) as Partial<CuotaInput>;
-    const res = crearCuota(user.id, {
+    const res = await crearCuota(user.id, {
       accountId: Number(body.accountId),
       descripcion: body.descripcion ?? "",
       monto: Number(body.monto),

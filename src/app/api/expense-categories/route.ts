@@ -10,8 +10,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await requireUser();
   if (!user) return unauthorized();
-  const cats = db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).all();
-  const groups = db.select().from(budgetGroups).all();
+  const [cats, groups] = await Promise.all([
+    db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
+    db.select().from(budgetGroups).execute(),
+  ]);
   const groupById = new Map(groups.map((g) => [g.id, g]));
 
   const withGroup = cats.map((c) => ({
@@ -33,19 +35,21 @@ export async function POST(req: NextRequest) {
       return apiError("nombre es requerido");
     }
 
-    const result = db
-      .insert(expenseCategories)
-      .values({
-        userId: user.id,
-        nombre,
-        icono: icono ?? "Tag",
-        color: color ?? "#7C3AED",
-        budgetGroupId: budgetGroupId ?? null,
-        tipo: body?.tipo === "ingreso" ? "ingreso" : "gasto",
-        activo: true,
-      })
-      .returning({ id: expenseCategories.id })
-      .all()[0];
+    const result = (
+      await db
+        .insert(expenseCategories)
+        .values({
+          userId: user.id,
+          nombre,
+          icono: icono ?? "Tag",
+          color: color ?? "#7C3AED",
+          budgetGroupId: budgetGroupId ?? null,
+          tipo: body?.tipo === "ingreso" ? "ingreso" : "gasto",
+          activo: true,
+        })
+        .returning({ id: expenseCategories.id })
+        .execute()
+    )[0];
 
     return NextResponse.json({ id: result.id });
   } catch (e) {

@@ -52,14 +52,14 @@ export function cuotaEfectiva(a: {
 }
 
 // Último pago real del apartado (fecha de la transacción más reciente vinculada).
-export function ultimoPagoDe(userId: number, apartadoId: number): string | null {
-  const row = db
+export async function ultimoPagoDe(userId: string, apartadoId: number): Promise<string | null> {
+  const rows = await db
     .select({ fecha: transactions.fecha })
     .from(transactions)
     .where(and(eq(transactions.apartadoId, apartadoId), eq(transactions.userId, userId)))
     .orderBy(desc(transactions.fecha), desc(transactions.id))
-    .all()[0];
-  return row?.fecha ?? null;
+    .execute();
+  return rows[0]?.fecha ?? null;
 }
 
 function quincenaFin(anio: number, mes: number, quincena: number): string {
@@ -67,12 +67,12 @@ function quincenaFin(anio: number, mes: number, quincena: number): string {
 }
 
 // Total apartado desde el inicio del ciclo actual (último pago, o fecha de creación).
-export function juntadoEnCiclo(userId: number, apartadoId: number, inicioCiclo: string): number {
-  const rows = db
+export async function juntadoEnCiclo(userId: string, apartadoId: number, inicioCiclo: string): Promise<number> {
+  const rows = await db
     .select({ monto: apartadoContribuciones.monto, anio: apartadoContribuciones.anio, mes: apartadoContribuciones.mes, quincena: apartadoContribuciones.quincena })
     .from(apartadoContribuciones)
     .where(and(eq(apartadoContribuciones.apartadoId, apartadoId), eq(apartadoContribuciones.userId, userId)))
-    .all();
+    .execute();
   let total = 0;
   for (const c of rows) {
     if (quincenaFin(c.anio, c.mes, c.quincena) > inicioCiclo) total += c.monto;
@@ -93,7 +93,7 @@ export interface CicloInfo {
   estado: ApartadoEstado;
 }
 
-export function cicloInfo(userId: number, a: {
+export async function cicloInfo(userId: string, a: {
   id: number;
   montoObjetivo: number;
   periodicidad: "mensual" | "anual";
@@ -101,11 +101,11 @@ export function cicloInfo(userId: number, a: {
   mesPago: number | null;
   montoQuincena: number | null;
   fechaInicio: string;
-}): CicloInfo {
-  const ultimoPago = ultimoPagoDe(userId, a.id);
+}): Promise<CicloInfo> {
+  const ultimoPago = await ultimoPagoDe(userId, a.id);
   const inicioCiclo = ultimoPago ?? a.fechaInicio;
   const vencimiento = proximoVencimiento(a, inicioCiclo);
-  const juntado = juntadoEnCiclo(userId, a.id, inicioCiclo);
+  const juntado = await juntadoEnCiclo(userId, a.id, inicioCiclo);
   const hoy = todayISO();
   const objetivo = a.montoObjetivo;
 
@@ -125,21 +125,23 @@ export function cicloInfo(userId: number, a: {
 }
 
 const GROUP_CACHE = new Map<number, BudgetGroupRow>();
-function grupoDe(id: number | null): BudgetGroupRow | null {
+async function grupoDe(id: number | null): Promise<BudgetGroupRow | null> {
   if (id == null) return null;
   if (!GROUP_CACHE.has(id)) {
-    const g = db.select().from(budgetGroups).where(eq(budgetGroups.id, id)).get();
+    const rows = await db.select().from(budgetGroups).where(eq(budgetGroups.id, id)).execute();
+    const g = rows[0];
     if (g) GROUP_CACHE.set(id, g);
   }
   return GROUP_CACHE.get(id) ?? null;
 }
 
-export function cargarApartados(userId: number): ApartadoRow[] {
-  const rows = db.select().from(apartados).where(eq(apartados.userId, userId)).orderBy(apartados.orden, apartados.nombre).all();
-
-  const cats = db.select().from(expenseCategories).where(eq(expenseCategories.userId, userId)).all();
+export async function cargarApartados(userId: string): Promise<ApartadoRow[]> {
+  const [rows, cats, accs] = await Promise.all([
+    db.select().from(apartados).where(eq(apartados.userId, userId)).orderBy(apartados.orden, apartados.nombre).execute(),
+    db.select().from(expenseCategories).where(eq(expenseCategories.userId, userId)).execute(),
+    db.select().from(accounts).where(eq(accounts.userId, userId)).execute(),
+  ]);
   const catById = new Map(cats.map((c) => [c.id, c]));
-  const accs = db.select().from(accounts).where(eq(accounts.userId, userId)).all();
   const accById = new Map(accs.map((a) => [a.id, a]));
 
   const hoy = new Date();
@@ -147,28 +149,30 @@ export function cargarApartados(userId: number): ApartadoRow[] {
   const mes = hoy.getMonth() + 1;
   const quincena = hoy.getDate() <= 15 ? 1 : 2;
 
-  return rows.map((a) => {
-    const info = cicloInfo(userId, a);
-    const contrib = contribucionQuincena(userId, a.id, anio, mes, quincena);
+  const resultado: ApartadoRow[] = [];
+  for (const a of rows) {
+    const info = await cicloInfo(userId, a);
+    const contrib = await contribucionQuincena(userId, a.id, anio, mes, quincena);
     const cat = a.categoriaId ? catById.get(a.categoriaId) : undefined;
-    return {
+    resultado.push({
       ...a,
       ...info,
-      grupo: grupoDe(a.budgetGroupId),
+      grupo: await grupoDe(a.budgetGroupId),
       categoria: cat
         ? {
             ...cat,
-            budgetGroup: cat.budgetGroupId ? grupoDe(cat.budgetGroupId) : null,
+            budgetGroup: cat.budgetGroupId ? await grupoDe(cat.budgetGroupId) : null,
           }
         : null,
       cuenta: a.cuentaId ? (accById.get(a.cuentaId) ?? null) : null,
       apartadoQuincena: { anio, mes, quincena, registrado: contrib > 0, monto: contrib },
-    };
-  });
+    });
+  }
+  return resultado;
 }
 
-export function contribucionQuincena(userId: number, apartadoId: number, anio: number, mes: number, quincena: number) {
-  return db
+export async function contribucionQuincena(userId: string, apartadoId: number, anio: number, mes: number, quincena: number): Promise<number> {
+  const rows = await db
     .select({ monto: apartadoContribuciones.monto })
     .from(apartadoContribuciones)
     .where(
@@ -180,21 +184,24 @@ export function contribucionQuincena(userId: number, apartadoId: number, anio: n
         eq(apartadoContribuciones.quincena, quincena)
       )
     )
-    .all()[0]?.monto ?? 0;
+    .execute();
+  return rows[0]?.monto ?? 0;
 }
 
-export function registrarContribucion(userId: number, apartadoId: number, anio: number, mes: number, quincena: number, monto: number) {
-  db.insert(apartadoContribuciones)
+export async function registrarContribucion(userId: string, apartadoId: number, anio: number, mes: number, quincena: number, monto: number) {
+  await db
+    .insert(apartadoContribuciones)
     .values({ userId, apartadoId, anio, mes, quincena, monto, fecha: todayISO() })
     .onConflictDoUpdate({
       target: [apartadoContribuciones.apartadoId, apartadoContribuciones.anio, apartadoContribuciones.mes, apartadoContribuciones.quincena],
       set: { monto },
     })
-    .run();
+    .execute();
 }
 
-export function quitarContribucion(userId: number, apartadoId: number, anio: number, mes: number, quincena: number) {
-  db.delete(apartadoContribuciones)
+export async function quitarContribucion(userId: string, apartadoId: number, anio: number, mes: number, quincena: number) {
+  await db
+    .delete(apartadoContribuciones)
     .where(
       and(
         eq(apartadoContribuciones.apartadoId, apartadoId),
@@ -204,5 +211,5 @@ export function quitarContribucion(userId: number, apartadoId: number, anio: num
         eq(apartadoContribuciones.quincena, quincena)
       )
     )
-    .run();
+    .execute();
 }

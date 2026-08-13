@@ -23,37 +23,38 @@ export async function GET(req: NextRequest) {
       return apiError("Parámetros mes y año requeridos");
     }
 
-    const groups = db.select().from(budgetGroups).all();
-    const expCats = db
-      .select()
-      .from(expenseCategories)
-      .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
-      .all();
-    const recurrents = db
-      .select()
-      .from(recurringExpenses)
-      .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
-      .all();
-    const allApartados = db
-      .select()
-      .from(apartados)
-      .where(eq(apartados.userId, user.id))
-      .orderBy(apartados.orden, apartados.nombre)
-      .all();
-    const activos = allApartados.filter((a) => a.activo);
-
     const range = quincenaRango(anio, mes, quincena);
-    const txs = db
-      .select()
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.userId, user.id),
-          gte(transactions.fecha, range.from),
-          lte(transactions.fecha, range.to)
+    const [groups, expCats, recurrents, allApartados, txs] = await Promise.all([
+      db.select().from(budgetGroups).execute(),
+      db
+        .select()
+        .from(expenseCategories)
+        .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
+        .execute(),
+      db
+        .select()
+        .from(recurringExpenses)
+        .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
+        .execute(),
+      db
+        .select()
+        .from(apartados)
+        .where(eq(apartados.userId, user.id))
+        .orderBy(apartados.orden, apartados.nombre)
+        .execute(),
+      db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, user.id),
+            gte(transactions.fecha, range.from),
+            lte(transactions.fecha, range.to)
+          )
         )
-      )
-      .all();
+        .execute(),
+    ]);
+    const activos = allApartados.filter((a) => a.activo);
 
     // Gasto real que cuenta contra el grupo: sin apartado vinculado.
     const gastadoByCat = new Map<number, number>();
@@ -86,28 +87,31 @@ export async function GET(req: NextRequest) {
       apartadosByGroup.set(a.budgetGroupId, arr);
     }
 
-    const regla: ReglaPct = getReglaPct(user.id);
-    const ingresosQuincena = getIngresoQuincena(user.id, anio, mes, quincena);
+    const regla: ReglaPct = await getReglaPct(user.id);
+    const ingresosQuincena = await getIngresoQuincena(user.id, anio, mes, quincena);
 
-    const groupsWithData = groups.map((g) => {
-      const groupCats = catsByGroup.get(g.id) ?? [];
-      const presupuestado = Math.round((ingresosQuincena * regla[g.key]) / 100);
-      const gastado = groupCats.reduce((sum, c) => sum + (gastadoByCat.get(c.id) ?? 0), 0);
+    const groupsWithData = await Promise.all(
+      groups.map(async (g) => {
+        const groupCats = catsByGroup.get(g.id) ?? [];
+        const presupuestado = Math.round((ingresosQuincena * regla[g.key]) / 100);
+        const gastado = groupCats.reduce((sum, c) => sum + (gastadoByCat.get(c.id) ?? 0), 0);
 
-      const apartadosDelGrupo = apartadosByGroup.get(g.id) ?? [];
-      const pendientes = apartadosDelGrupo.map((a) => {
-        const contrib = contribucionQuincena(user.id, a.id, anio, mes, quincena);
-        return {
-          id: a.id,
-          nombre: a.nombre,
-          color: a.color,
-          icono: a.icono,
-          cuota: cuotaEfectiva(a),
-          registrado: contrib > 0,
-          monto: contrib,
-        };
-      });
-      const reservado = pendientes.reduce((sum, p) => sum + p.monto, 0);
+        const apartadosDelGrupo = apartadosByGroup.get(g.id) ?? [];
+        const pendientes = await Promise.all(
+          apartadosDelGrupo.map(async (a) => {
+            const contrib = await contribucionQuincena(user.id, a.id, anio, mes, quincena);
+            return {
+              id: a.id,
+              nombre: a.nombre,
+              color: a.color,
+              icono: a.icono,
+              cuota: cuotaEfectiva(a),
+              registrado: contrib > 0,
+              monto: contrib,
+            };
+          })
+        );
+        const reservado = pendientes.reduce((sum, p) => sum + p.monto, 0);
 
       const progreso = presupuestado > 0 ? Math.min(100, (gastado / presupuestado) * 100) : gastado > 0 ? 100 : 0;
 
@@ -128,13 +132,17 @@ export async function GET(req: NextRequest) {
         recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + r.monto, 0),
         apartados: pendientes,
       };
-    });
-
-    const apartadosListos = activos
-      .map((a) => {
-        const info = cicloInfo(user.id, a);
-        return { a, info };
       })
+    );
+
+    const apartadosListos = (
+      await Promise.all(
+        activos.map(async (a) => {
+          const info = await cicloInfo(user.id, a);
+          return { a, info };
+        })
+      )
+    )
       .filter(({ info }) => info.estado === "listo")
       .map(({ a, info }) => ({
         id: a.id,

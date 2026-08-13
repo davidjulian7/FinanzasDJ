@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!user) return unauthorized();
     const { id } = await params;
     const body = await req.json();
-    registrarPagoDeuda(user.id, Number(id), Number(body.monto), body.cuentaId ? Number(body.cuentaId) : null);
+    await registrarPagoDeuda(user.id, Number(id), Number(body.monto), body.cuentaId ? Number(body.cuentaId) : null);
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof Error) return apiError(e.message);

@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { and, eq, ne } from "drizzle-orm";
 import { apiError, unauthorized } from "@/lib/api-server";
-import { createSessionCookie, getSessionUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+
+async function emailEnUso(email: string, exceptoUserId?: string): Promise<boolean> {
+  const admin = createAdminClient();
+  for (let page = 1; page <= 3; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (!data?.users) break;
+    const encontrado = data.users.find((u) => u.email?.toLowerCase() === email && u.id !== exceptoUserId);
+    if (encontrado) return true;
+    if (data.users.length < 1000) break;
+  }
+  return false;
+}
 
 export async function PATCH(req: NextRequest) {
   const user = await getSessionUser();
@@ -19,16 +30,24 @@ export async function PATCH(req: NextRequest) {
   if (nombre.length > 80) return apiError("El nombre es demasiado largo");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return apiError("Correo inválido");
 
-  const enUso = db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(ne(users.id, user.id), eq(users.email, email)))
-    .get();
-  if (enUso) return apiError("Ese correo ya está en uso por otro usuario");
+  const supabase = await createServerSupabaseClient();
 
-  db.update(users).set({ nombre, email }).where(eq(users.id, user.id)).run();
+  if (email !== user.email) {
+    if (await emailEnUso(email, user.id)) {
+      return apiError("Ese correo ya está en uso por otro usuario");
+    }
+    const admin = createAdminClient();
+    const { error: emailError } = await admin.auth.admin.updateUserById(user.id, {
+      email,
+      email_confirm: true,
+    });
+    if (emailError) return apiError("No se pudo actualizar el correo", 500);
+  }
 
-  const actualizado = { id: user.id, nombre, email };
-  await createSessionCookie(actualizado);
-  return NextResponse.json({ user: actualizado });
+  if (nombre !== user.nombre) {
+    const { error: nombreError } = await supabase.auth.updateUser({ data: { nombre } });
+    if (nombreError) return apiError("No se pudo actualizar el nombre", 500);
+  }
+
+  return NextResponse.json({ user: { id: user.id, nombre, email } });
 }

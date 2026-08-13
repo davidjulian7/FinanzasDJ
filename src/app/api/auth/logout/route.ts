@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { clearSessionCookie } from "@/lib/auth";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  await clearSessionCookie();
+  const supabase = await createServerSupabaseClient();
+  await supabase.auth.signOut();
   return NextResponse.json({ ok: true });
 }

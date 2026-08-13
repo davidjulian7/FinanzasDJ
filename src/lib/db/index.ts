@@ -1,21 +1,17 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import fs from "node:fs";
-import path from "node:path";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "finanzas.db");
+const globalForDb = globalThis as unknown as {
+  __dbConn?: ReturnType<typeof postgres>;
+};
 
-const globalForDb = globalThis as unknown as { __dbConn?: Database.Database };
-
-function createConnection(): Database.Database {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  const conn = new Database(DB_PATH);
-  conn.pragma("journal_mode = WAL");
-  conn.pragma("foreign_keys = ON");
-  return conn;
+function createConnection(): ReturnType<typeof postgres> {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL no está definida. Configurala en .env.local (ver .env.example).");
+  }
+  return postgres(url, { max: 10, prepare: false });
 }
 
 function getDb() {
@@ -23,6 +19,19 @@ function getDb() {
   return drizzle(conn, { schema });
 }
 
-export const db = getDb();
+type Db = ReturnType<typeof getDb>;
 
-migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
+let cached: Db | undefined;
+
+// Cliente diferido: no crea la conexión hasta el primer uso real,
+// para que el build funcione sin DATABASE_URL configurada.
+export const db = new Proxy({} as Db, {
+  get(_target, prop, receiver) {
+    cached ??= getDb();
+    return Reflect.get(cached, prop, receiver);
+  },
+  set(_target, prop, value, receiver) {
+    cached ??= getDb();
+    return Reflect.set(cached, prop, value, receiver);
+  },
+});

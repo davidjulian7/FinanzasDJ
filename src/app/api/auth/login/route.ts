@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { apiError } from "@/lib/api-server";
-import { createSessionCookie, verifyPassword } from "@/lib/auth";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +28,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Demasiados intentos. Intentá de nuevo en ${seg}s` }, { status: 429 });
   }
 
-  const row = db.select().from(users).where(eq(users.email, email)).get();
-  const ok = row ? verifyPassword(password, row.passwordHash) : false;
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (!ok || !row) {
+  if (error || !data.user) {
     const prevCount = prev?.count ?? 0;
     const count = prevCount + 1;
     if (count >= MAX_INTENTOS) {
@@ -46,6 +43,8 @@ export async function POST(req: NextRequest) {
   }
 
   intentos.delete(email);
-  await createSessionCookie({ id: row.id, nombre: row.nombre, email: row.email });
-  return NextResponse.json({ user: { id: row.id, nombre: row.nombre, email: row.email } });
+  const u = data.user;
+  return NextResponse.json({
+    user: { id: u.id, nombre: String(u.user_metadata?.nombre ?? u.email), email: u.email },
+  });
 }

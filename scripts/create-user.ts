@@ -1,11 +1,9 @@
-import bcrypt from "bcryptjs";
-import { db } from "../src/lib/db";
-import { users } from "../src/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { todayISO } from "../src/lib/format";
+import { createAdminClient } from "../src/lib/supabase/admin";
+import { seedBudgetGroups } from "../src/lib/db/seed";
 
-// Crea un usuario con acceso a la aplicación. Solo vos podés crear usuarios
-// (no hay registro público). Uso:
+// Crea un usuario con acceso a la aplicación (no hay registro público).
+// Usa la service role key de Supabase (SUPABASE_SERVICE_ROLE_KEY en .env.local).
+// Uso:
 //   npm run user:create -- <email> <password> [nombre]
 
 const email = process.argv[2]?.toLowerCase() ?? "";
@@ -25,17 +23,34 @@ if (password.length < 8) {
   process.exit(1);
 }
 
-const existing = db.select({ id: users.id }).from(users).where(eq(users.email, email)).get();
-if (existing) {
-  console.error(`Ya existe un usuario con el correo "${email}".`);
-  process.exit(1);
+async function main() {
+  const admin = createAdminClient();
+
+  const { data: existing } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const yaExiste = existing?.users.some((u) => u.email?.toLowerCase() === email);
+  if (yaExiste) {
+    console.error(`Ya existe un usuario con el correo "${email}".`);
+    process.exit(1);
+  }
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { nombre },
+  });
+  if (error || !data.user) {
+    console.error("No se pudo crear el usuario:", error?.message ?? "error desconocido");
+    process.exit(1);
+  }
+
+  await seedBudgetGroups();
+
+  console.log(`Usuario creado: ${data.user.email} (${nombre}) — id ${data.user.id}`);
+  console.log("Ya puede iniciar sesión en /login.");
 }
 
-const row = db
-  .insert(users)
-  .values({ nombre, email, passwordHash: bcrypt.hashSync(password, 10), createdAt: todayISO() })
-  .returning({ id: users.id, email: users.email, nombre: users.nombre })
-  .all()[0];
-
-console.log(`Usuario creado: ${row.email} (${row.nombre}) — id ${row.id}`);
-console.log("Ya puede iniciar sesión en /login.");
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await requireUser();
   if (!user) return unauthorized();
-  const rows = db.select().from(accounts).where(eq(accounts.userId, user.id)).orderBy(accounts.id).all();
+  const rows = await db.select().from(accounts).where(eq(accounts.userId, user.id)).orderBy(accounts.id).execute();
   return NextResponse.json(rows, {
     headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
   });
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user) return unauthorized();
     const body = (await req.json()) as Partial<AccountInput>;
-    const row = crearCuenta(user.id, {
+    const row = await crearCuenta(user.id, {
       nombre: body.nombre ?? "",
       tipo: (body.tipo ?? "debito") as AccountInput["tipo"],
       saldoActual: Number(body.saldoActual) || 0,

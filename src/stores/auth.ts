@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export interface AuthUser {
-  id: number;
+  id: string;
   nombre: string;
   email: string;
 }

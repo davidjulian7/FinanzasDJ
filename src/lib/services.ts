@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { isoDate } from "./format";
 import { db } from "./db";
 import { accounts, cuotas, debts, transactions } from "./db/schema";
@@ -350,6 +350,35 @@ export function crearCuota(input: CuotaInput) {
     .returning({ id: cuotas.id })
     .all()[0];
   return { id: row.id, cuota, total, transactionId: gasto.id };
+}
+
+// Aplica un pago de tarjeta a las compras a meses: marca como pagadas las cuotas
+// completas que el monto alcanza a cubrir, empezando por la compra más antigua.
+export function pagarCuotasConMonto(
+  accountId: number,
+  monto: number
+): { marcadas: number; montoAplicado: number; detalle: { id: number; descripcion: string; marcadas: number; cuota: number }[] } {
+  const planes = db
+    .select()
+    .from(cuotas)
+    .where(eq(cuotas.accountId, accountId))
+    .orderBy(asc(cuotas.fecha), asc(cuotas.id))
+    .all()
+    .filter((c) => c.pagadas < c.meses);
+  let restante = redondear(monto);
+  const detalle: { id: number; descripcion: string; marcadas: number; cuota: number }[] = [];
+  let marcadas = 0;
+  for (const p of planes) {
+    if (restante <= 0) break;
+    const restantes = p.meses - p.pagadas;
+    const pagables = Math.min(restantes, Math.floor((restante + 0.0001) / p.cuota));
+    if (pagables <= 0) continue;
+    db.update(cuotas).set({ pagadas: p.pagadas + pagables }).where(eq(cuotas.id, p.id)).run();
+    restante = redondear(restante - pagables * p.cuota);
+    marcadas += pagables;
+    detalle.push({ id: p.id, descripcion: p.descripcion, marcadas: pagables, cuota: p.cuota });
+  }
+  return { marcadas, montoAplicado: redondear(monto - restante), detalle };
 }
 
 export function pagarCuota(id: number, cuentaPagoId: number) {

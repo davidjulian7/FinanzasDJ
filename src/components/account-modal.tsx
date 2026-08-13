@@ -121,6 +121,12 @@ export function AccountModal({
 
   useEffect(() => {
     if (!open) return;
+    api
+      .get<AccountRow[]>("/api/accounts")
+      .then((list) => setCuentas(list))
+      .catch(() => {
+        /* si falla, quedan las de la referencia */
+      });
     setTab("cuenta");
     setNombre(cuenta?.nombre ?? "");
     setTipo(cuenta?.tipo ?? "debito");
@@ -316,7 +322,25 @@ export function AccountModal({
         fecha: todayISO(),
         notas: `Pago de tarjeta de crédito`,
       });
-      toast.success("Pago registrado");
+      let aplicadas = 0;
+      try {
+        const res = await api.post<{ marcadas: number }>("/api/cuotas/pagar-con-monto", {
+          accountId: cuenta.id,
+          monto: m,
+        });
+        aplicadas = res.marcadas;
+      } catch {
+        // Si falla el reparto, el pago igual se registró y la tarjeta ya no debe esa parte.
+      }
+      if (aplicadas > 0) {
+        const list = await api.get<CuotaRow[]>(`/api/cuotas?account=${cuenta.id}`);
+        setCuotas(list);
+      }
+      toast.success(
+        aplicadas > 0
+          ? `Pago registrado · ${aplicadas} cuota${aplicadas === 1 ? "" : "s"} de compras a meses marcada${aplicadas === 1 ? "" : "s"} como pagada${aplicadas === 1 ? "" : "s"}`
+          : "Pago registrado"
+      );
       onOpenChange(false);
       onSaved?.();
     } catch (err) {

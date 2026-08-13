@@ -9,10 +9,14 @@ import { crearCuenta, type AccountInput } from "@/lib/services";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = await requireUser();
-  if (!user) return unauthorized();
-  const rows = await db.select().from(accounts).where(eq(accounts.userId, user.id)).orderBy(accounts.id).execute();
-  return NextResponse.json(rows);
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    const rows = await db.select().from(accounts).where(eq(accounts.userId, user.id)).orderBy(accounts.id).execute();
+    return NextResponse.json(rows);
+  } catch (e) {
+    return handleError(e);
+  }
 }
 
 export async function POST(req: NextRequest) {

@@ -9,66 +9,70 @@ import { getReglaPct, getIngresoQuincena, ingresoKey, type ReglaPct } from "@/li
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const user = await requireUser();
-  if (!user) return unauthorized();
-  const { searchParams } = new URL(req.url);
-  const mes = Number(searchParams.get("mes"));
-  const anio = Number(searchParams.get("anio"));
-  const quincena = Number(searchParams.get("quincena") ?? 1);
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    const { searchParams } = new URL(req.url);
+    const mes = Number(searchParams.get("mes"));
+    const anio = Number(searchParams.get("anio"));
+    const quincena = Number(searchParams.get("quincena") ?? 1);
 
-  if (!mes || !anio) {
-    return apiError("Parámetros mes y año requeridos");
+    if (!mes || !anio) {
+      return apiError("Parámetros mes y año requeridos");
+    }
+
+    const [groups, expCats, recurrents] = await Promise.all([
+      db.select().from(budgetGroups).execute(),
+      db
+        .select()
+        .from(expenseCategories)
+        .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
+        .execute(),
+      db
+        .select()
+        .from(recurringExpenses)
+        .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
+        .execute(),
+    ]);
+
+    const catsByGroup = new Map<number, typeof expCats>();
+    for (const c of expCats) {
+      if (!c.budgetGroupId) continue;
+      const arr = catsByGroup.get(c.budgetGroupId) ?? [];
+      arr.push(c);
+      catsByGroup.set(c.budgetGroupId, arr);
+    }
+
+    const recurrentByGroup = new Map<number, typeof recurrents>();
+    for (const r of recurrents) {
+      const arr = recurrentByGroup.get(r.budgetGroupId) ?? [];
+      arr.push(r);
+      recurrentByGroup.set(r.budgetGroupId, arr);
+    }
+
+    const regla = await getReglaPct(user.id);
+    const ingresosQuincena = await getIngresoQuincena(user.id, anio, mes, quincena);
+
+    const groupsWithData = groups.map((g) => ({
+      ...g,
+      categorias: catsByGroup.get(g.id) ?? [],
+      recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + r.monto, 0),
+    }));
+
+    const sinGrupo = expCats.filter((c) => !c.budgetGroupId);
+
+    return NextResponse.json({
+      mes,
+      anio,
+      quincena,
+      ingresosQuincena,
+      regla,
+      groups: groupsWithData,
+      sinGrupo,
+    });
+  } catch (e) {
+    return handleError(e);
   }
-
-  const [groups, expCats, recurrents] = await Promise.all([
-    db.select().from(budgetGroups).execute(),
-    db
-      .select()
-      .from(expenseCategories)
-      .where(and(eq(expenseCategories.activo, true), eq(expenseCategories.userId, user.id)))
-      .execute(),
-    db
-      .select()
-      .from(recurringExpenses)
-      .where(and(eq(recurringExpenses.activo, true), eq(recurringExpenses.userId, user.id)))
-      .execute(),
-  ]);
-
-  const catsByGroup = new Map<number, typeof expCats>();
-  for (const c of expCats) {
-    if (!c.budgetGroupId) continue;
-    const arr = catsByGroup.get(c.budgetGroupId) ?? [];
-    arr.push(c);
-    catsByGroup.set(c.budgetGroupId, arr);
-  }
-
-  const recurrentByGroup = new Map<number, typeof recurrents>();
-  for (const r of recurrents) {
-    const arr = recurrentByGroup.get(r.budgetGroupId) ?? [];
-    arr.push(r);
-    recurrentByGroup.set(r.budgetGroupId, arr);
-  }
-
-  const regla = await getReglaPct(user.id);
-  const ingresosQuincena = await getIngresoQuincena(user.id, anio, mes, quincena);
-
-  const groupsWithData = groups.map((g) => ({
-    ...g,
-    categorias: catsByGroup.get(g.id) ?? [],
-    recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + r.monto, 0),
-  }));
-
-  const sinGrupo = expCats.filter((c) => !c.budgetGroupId);
-
-  return NextResponse.json({
-    mes,
-    anio,
-    quincena,
-    ingresosQuincena,
-    regla,
-    groups: groupsWithData,
-    sinGrupo,
-  });
 }
 
 export async function POST(req: NextRequest) {

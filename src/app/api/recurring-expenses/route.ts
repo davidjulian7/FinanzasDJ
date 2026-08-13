@@ -9,38 +9,42 @@ import { validarMonto } from "@/lib/services";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const user = await requireUser();
-  if (!user) return unauthorized();
-  const { searchParams } = new URL(req.url);
-  const activoOnly = searchParams.get("activo") === "true";
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    const { searchParams } = new URL(req.url);
+    const activoOnly = searchParams.get("activo") === "true";
 
-  const conds = [eq(recurringExpenses.userId, user.id)];
-  if (activoOnly) conds.push(eq(recurringExpenses.activo, true));
+    const conds = [eq(recurringExpenses.userId, user.id)];
+    if (activoOnly) conds.push(eq(recurringExpenses.activo, true));
 
-  const [items, cats, accs, groups] = await Promise.all([
-    db
-      .select()
-      .from(recurringExpenses)
-      .where(and(...conds))
-      .orderBy(desc(recurringExpenses.activo), recurringExpenses.nombre)
-      .execute(),
-    db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
-    db.select().from(accounts).where(eq(accounts.userId, user.id)).execute(),
-    db.select().from(budgetGroups).execute(),
-  ]);
+    const [items, cats, accs, groups] = await Promise.all([
+      db
+        .select()
+        .from(recurringExpenses)
+        .where(and(...conds))
+        .orderBy(desc(recurringExpenses.activo), recurringExpenses.nombre)
+        .execute(),
+      db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
+      db.select().from(accounts).where(eq(accounts.userId, user.id)).execute(),
+      db.select().from(budgetGroups).execute(),
+    ]);
 
-  const catById = new Map(cats.map((c) => [c.id, c]));
-  const accById = new Map(accs.map((a) => [a.id, a]));
-  const groupById = new Map(groups.map((g) => [g.id, g]));
+    const catById = new Map(cats.map((c) => [c.id, c]));
+    const accById = new Map(accs.map((a) => [a.id, a]));
+    const groupById = new Map(groups.map((g) => [g.id, g]));
 
-  const withRelations = items.map((r) => ({
-    ...r,
-    expenseCategory: catById.get(r.expenseCategoryId),
-    account: accById.get(r.accountId),
-    budgetGroup: groupById.get(r.budgetGroupId),
-  }));
+    const withRelations = items.map((r) => ({
+      ...r,
+      expenseCategory: catById.get(r.expenseCategoryId),
+      account: accById.get(r.accountId),
+      budgetGroup: groupById.get(r.budgetGroupId),
+    }));
 
-  return NextResponse.json(withRelations);
+    return NextResponse.json(withRelations);
+  } catch (e) {
+    return handleError(e);
+  }
 }
 
 export async function POST(req: NextRequest) {

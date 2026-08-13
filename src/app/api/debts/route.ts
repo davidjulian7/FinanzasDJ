@@ -9,10 +9,14 @@ import type { NewDebt } from "@/lib/db/schema";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = await requireUser();
-  if (!user) return unauthorized();
-  const rows = await db.select().from(debts).where(eq(debts.userId, user.id)).orderBy(debts.tipo, debts.id).execute();
-  return NextResponse.json(rows);
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    const rows = await db.select().from(debts).where(eq(debts.userId, user.id)).orderBy(debts.tipo, debts.id).execute();
+    return NextResponse.json(rows);
+  } catch (e) {
+    return handleError(e);
+  }
 }
 
 export async function POST(req: NextRequest) {

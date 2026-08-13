@@ -9,32 +9,36 @@ import { crearCuota, type CuotaInput } from "@/lib/services";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const user = await requireUser();
-  if (!user) return unauthorized();
-  const accountId = req.nextUrl.searchParams.get("account");
-  const conds = [eq(cuotas.userId, user.id)];
-  if (accountId) conds.push(eq(cuotas.accountId, Number(accountId)));
-  const [rows, cuentas] = await Promise.all([
-    db.select().from(cuotas).where(and(...conds)).orderBy(desc(cuotas.id)).execute(),
-    db.select().from(accounts).where(eq(accounts.userId, user.id)).execute(),
-  ]);
-  const byId = new Map(cuentas.map((c) => [c.id, c]));
-  return NextResponse.json(
-    rows.map((c) => ({
-      id: c.id,
-      accountId: c.accountId,
-      descripcion: c.descripcion,
-      monto: c.monto,
-      meses: c.meses,
-      tasaAnual: c.tasaAnual,
-      cuota: c.cuota,
-      total: c.total,
-      pagadas: c.pagadas,
-      fecha: c.fecha,
-      transactionId: c.transactionId,
-      cuenta: byId.get(c.accountId)?.nombre ?? "—",
-    }))
-  );
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    const accountId = req.nextUrl.searchParams.get("account");
+    const conds = [eq(cuotas.userId, user.id)];
+    if (accountId) conds.push(eq(cuotas.accountId, Number(accountId)));
+    const [rows, cuentas] = await Promise.all([
+      db.select().from(cuotas).where(and(...conds)).orderBy(desc(cuotas.id)).execute(),
+      db.select().from(accounts).where(eq(accounts.userId, user.id)).execute(),
+    ]);
+    const byId = new Map(cuentas.map((c) => [c.id, c]));
+    return NextResponse.json(
+      rows.map((c) => ({
+        id: c.id,
+        accountId: c.accountId,
+        descripcion: c.descripcion,
+        monto: c.monto,
+        meses: c.meses,
+        tasaAnual: c.tasaAnual,
+        cuota: c.cuota,
+        total: c.total,
+        pagadas: c.pagadas,
+        fecha: c.fecha,
+        transactionId: c.transactionId,
+        cuenta: byId.get(c.accountId)?.nombre ?? "—",
+      }))
+    );
+  } catch (e) {
+    return handleError(e);
+  }
 }
 
 export async function POST(req: NextRequest) {

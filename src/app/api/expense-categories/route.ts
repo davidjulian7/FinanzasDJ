@@ -8,20 +8,24 @@ import { requireUser } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = await requireUser();
-  if (!user) return unauthorized();
-  const [cats, groups] = await Promise.all([
-    db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
-    db.select().from(budgetGroups).execute(),
-  ]);
-  const groupById = new Map(groups.map((g) => [g.id, g]));
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    const [cats, groups] = await Promise.all([
+      db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
+      db.select().from(budgetGroups).execute(),
+    ]);
+    const groupById = new Map(groups.map((g) => [g.id, g]));
 
-  const withGroup = cats.map((c) => ({
-    ...c,
-    budgetGroup: c.budgetGroupId ? groupById.get(c.budgetGroupId) ?? null : null,
-  }));
+    const withGroup = cats.map((c) => ({
+      ...c,
+      budgetGroup: c.budgetGroupId ? groupById.get(c.budgetGroupId) ?? null : null,
+    }));
 
-  return NextResponse.json(withGroup);
+    return NextResponse.json(withGroup);
+  } catch (e) {
+    return handleError(e);
+  }
 }
 
 export async function POST(req: NextRequest) {

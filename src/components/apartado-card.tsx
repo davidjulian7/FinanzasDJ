@@ -105,6 +105,23 @@ export function ApartadoCard({
         )}
       </div>
 
+      {apartado.categoria && (
+        <div className="mt-2.5 rounded-lg border border-border bg-card px-2.5 py-1.5">
+          <p className="text-[11px] text-muted-foreground">
+            Gastado en {apartado.categoria.nombre}:{" "}
+            <span className={cn("font-mono font-semibold", apartado.gastadoQuincena > apartado.cuotaEfectiva ? "text-destructive" : "text-positive")}>
+              {formatCurrency(apartado.gastadoQuincena)}
+            </span>{" "}
+            de {formatCurrency(apartado.cuotaEfectiva)}/quincena
+            {apartado.gastadoQuincena > apartado.cuotaEfectiva ? (
+              <span className="font-medium text-destructive"> · Te pasás por {formatCurrency(apartado.gastadoQuincena - apartado.cuotaEfectiva)}</span>
+            ) : (
+              <span> · Quedan {formatCurrency(apartado.cuotaEfectiva - apartado.gastadoQuincena)}</span>
+            )}
+          </p>
+        </div>
+      )}
+
       <div className="mt-3 flex items-center gap-2">
         <Button
           size="sm"

@@ -284,7 +284,7 @@ export function ApartadoForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Categoría de gasto (para el pago)</Label>
+            <Label>Categoría de gasto</Label>
             <Select value={form.categoriaId} onValueChange={(v) => set("categoriaId", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Elige categoría (opcional)" />
@@ -297,6 +297,10 @@ export function ApartadoForm({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              El apartado mostrará cuánto gastaste en esa categoría durante la quincena (con cualquier cuenta), para
+              controlar que no superes el límite. También se usa al registrar el pago.
+            </p>
           </div>
 
           <div className="space-y-2">

@@ -193,26 +193,42 @@ export default function BudgetExecutionPage() {
                 {g.apartados.map((ap) => (
                   <div
                     key={ap.id}
-                    className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2"
+                    className="rounded-lg border border-border bg-card px-3 py-2"
                   >
-                    <div
-                      className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs"
-                      style={{ backgroundColor: `${ap.color}18`, color: ap.color }}
-                    >
-                      <IconByName name={ap.icono} className="size-4" />
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs"
+                        style={{ backgroundColor: `${ap.color}18`, color: ap.color }}
+                      >
+                        <IconByName name={ap.icono} className="size-4" />
+                      </div>
+                      <span className="min-w-0 flex-1 truncate text-sm">{ap.nombre}</span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {formatCurrency(ap.cuota)}/quincena
+                      </span>
+                      {ap.registrado ? (
+                        <Button variant="ghost" size="sm" className="gap-1 text-positive" disabled={apartandoId === ap.id} onClick={() => quitar(g, ap.id)} title="Deshacer">
+                          <Check className="size-3.5" /> Apartado
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" className="gap-1" disabled={apartandoId === ap.id} onClick={() => apartar(g, ap.id)}>
+                          <PiggyBank className="size-3.5" /> Apartar {formatCurrency(ap.cuota)}
+                        </Button>
+                      )}
                     </div>
-                    <span className="min-w-0 flex-1 truncate text-sm">{ap.nombre}</span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {formatCurrency(ap.cuota)}/quincena
-                    </span>
-                    {ap.registrado ? (
-                      <Button variant="ghost" size="sm" className="gap-1 text-positive" disabled={apartandoId === ap.id} onClick={() => quitar(g, ap.id)} title="Deshacer">
-                        <Check className="size-3.5" /> Apartado
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" className="gap-1" disabled={apartandoId === ap.id} onClick={() => apartar(g, ap.id)}>
-                        <PiggyBank className="size-3.5" /> Apartar {formatCurrency(ap.cuota)}
-                      </Button>
+                    {ap.categoriaNombre && (
+                      <p className="mt-1.5 pl-9 text-[11px] text-muted-foreground">
+                        Gastado en {ap.categoriaNombre}:{" "}
+                        <span className={cn("font-mono font-semibold", ap.gastadoQuincena > ap.cuota ? "text-destructive" : "text-positive")}>
+                          {formatCurrency(ap.gastadoQuincena)}
+                        </span>{" "}
+                        de {formatCurrency(ap.cuota)}
+                        {ap.gastadoQuincena > ap.cuota ? (
+                          <span className="font-medium text-destructive"> · Te pasás por {formatCurrency(ap.gastadoQuincena - ap.cuota)}</span>
+                        ) : (
+                          <span> · Quedan {formatCurrency(ap.cuota - ap.gastadoQuincena)}</span>
+                        )}
+                      </p>
                     )}
                   </div>
                 ))}

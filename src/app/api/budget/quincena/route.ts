@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { getReglaPct, getIngresoQuincena, type ReglaPct } from "@/lib/settings";
 import { quincenaRango } from "@/lib/ranges";
 import { montoQuincena } from "@/lib/recurrentes";
-import { cicloInfo, cuotaEfectiva, contribucionQuincena } from "@/lib/apartados";
+import { cicloInfo, cuotaEfectiva, contribucionQuincena, gastadoEnCategoria } from "@/lib/apartados";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
         .execute(),
     ]);
     const activos = allApartados.filter((a) => a.activo);
+    const catsById = new Map(expCats.map((c) => [c.id, c]));
 
     // Gasto real que cuenta contra el grupo: sin apartado vinculado.
     const gastadoByCat = new Map<number, number>();
@@ -101,6 +102,7 @@ export async function GET(req: NextRequest) {
         const pendientes = await Promise.all(
           apartadosDelGrupo.map(async (a) => {
             const contrib = await contribucionQuincena(user.id, a.id, anio, mes, quincena);
+            const cat = a.categoriaId ? catsById.get(a.categoriaId) : undefined;
             return {
               id: a.id,
               nombre: a.nombre,
@@ -109,6 +111,9 @@ export async function GET(req: NextRequest) {
               cuota: cuotaEfectiva(a),
               registrado: contrib > 0,
               monto: contrib,
+              categoriaId: a.categoriaId,
+              categoriaNombre: cat?.nombre ?? null,
+              gastadoQuincena: a.categoriaId ? await gastadoEnCategoria(user.id, a.categoriaId, anio, mes, quincena) : 0,
             };
           })
         );

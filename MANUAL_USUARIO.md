@@ -196,12 +196,15 @@ Los apartados reservan dinero del presupuesto de cada quincena hacia un pago fut
    - **Día de pago** (y **mes** si es anual).
    - **Grupo (50/30/20)**: de qué grupo sale la reserva.
    - **Cuota fija** (opcional): si quieres apartar siempre lo mismo; si no, la aplicación calcula la cuota automática.
+   - **Categoría de gasto** (opcional): útil si el gasto no se paga en un día fijo ni con una cuenta fija (ej. un apartado para "Comida"). El apartado mostrará cuánto gastaste en esa categoría durante la quincena con **cualquier cuenta**, comparado con su cuota: te avisa cuánto te queda o **por cuánto te estás pasando**.
    - Color, icono y nota (opcional).
 4. Toca **"Crear"**.
 
 ### Apartar cada quincena
 
 En la pantalla de Apartados (o en la Ejecución quincenal) toca **"Apartar $X"**. Cuando lo juntaste, el apartado queda **"Listo para pagar"**.
+
+Si el apartado tiene **categoría de gasto**, verás además una línea con **"Gastado en [categoría]: $Y de $X/quincena"**: la suma de tus gastos de esa categoría en la quincena (con cualquier cuenta) contra el límite de la cuota. En verde te dice cuánto te **queda**, y en rojo **por cuánto te estás pasando**.
 
 ### Pagar desde el apartado
 

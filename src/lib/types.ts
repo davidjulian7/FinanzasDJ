@@ -156,6 +156,9 @@ export interface ApartadoPendiente {
   cuota: number;
   registrado: boolean;
   monto: number;
+  categoriaId: number | null;
+  categoriaNombre: string | null;
+  gastadoQuincena: number;
 }
 
 export interface ApartadoListo {
@@ -209,4 +212,5 @@ export interface ApartadoRow {
   categoria: ExpenseCategoryRow | null;
   cuenta: AccountRow | null;
   apartadoQuincena: { anio: number; mes: number; quincena: 1 | 2; registrado: boolean; monto: number };
+  gastadoQuincena: number;
 }

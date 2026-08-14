@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 import { accounts, apartadoContribuciones, apartados, budgetGroups, expenseCategories, transactions } from "./db/schema";
 import { quincenaRango } from "./ranges";
@@ -166,6 +166,7 @@ export async function cargarApartados(userId: string): Promise<ApartadoRow[]> {
         : null,
       cuenta: a.cuentaId ? (accById.get(a.cuentaId) ?? null) : null,
       apartadoQuincena: { anio, mes, quincena, registrado: contrib > 0, monto: contrib },
+      gastadoQuincena: a.categoriaId ? await gastadoEnCategoria(userId, a.categoriaId, anio, mes, quincena) : 0,
     });
   }
   return resultado;
@@ -186,6 +187,25 @@ export async function contribucionQuincena(userId: string, apartadoId: number, a
     )
     .execute();
   return rows[0]?.monto ?? 0;
+}
+
+// Gasto acumulado en una categoría durante la quincena actual (cualquier cuenta).
+export async function gastadoEnCategoria(userId: string, categoriaId: number, anio: number, mes: number, quincena: number): Promise<number> {
+  const range = quincenaRango(anio, mes, quincena);
+  const rows = await db
+    .select({ monto: transactions.monto })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.tipo, "gasto"),
+        eq(transactions.categoryId, categoriaId),
+        gte(transactions.fecha, range.from),
+        lte(transactions.fecha, range.to)
+      )
+    )
+    .execute();
+  return Math.round(rows.reduce((s, t) => s + t.monto, 0) * 100) / 100;
 }
 
 export async function registrarContribucion(userId: string, apartadoId: number, anio: number, mes: number, quincena: number, monto: number) {

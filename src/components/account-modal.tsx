@@ -29,7 +29,7 @@ import { formatCurrency, todayISO } from "@/lib/format";
 import { IconByName } from "@/components/icon-registry";
 import { cn } from "@/lib/utils";
 
-const COLORES = ["#7C3AED", "#3B82F6", "#06D6A0", "#F59E0B", "#EF4444", "#10B981", "#0EA5E9", "#EC4899", "#84CC16", "#A855F7"];
+const COLORES = ["#2D3748", "#4A5568", "#5A8F6D", "#C9A24A", "#B86A62", "#8C94A3", "#7D9C88", "#D2B56C", "#C98A7E", "#A3B79A"];
 const ICONOS = ["Landmark", "Wallet", "Banknote", "CreditCard", "TrendingUp", "PiggyBank", "HandCoins", "Gift", "ShoppingBag", "Car"];
 
 function redondear2(n: number): number {
@@ -87,7 +87,7 @@ export function AccountModal({
   const [limite, setLimite] = useState("");
   const [corte, setCorte] = useState("");
   const [pago, setPago] = useState("");
-  const [color, setColor] = useState("#7C3AED");
+  const [color, setColor] = useState("#2D3748");
   const [icono, setIcono] = useState("Wallet");
   const [loading, setLoading] = useState(false);
 
@@ -102,7 +102,7 @@ export function AccountModal({
 
   const [nuevaCat, setNuevaCat] = useState(false);
   const [catNombre, setCatNombre] = useState("");
-  const [catColor, setCatColor] = useState("#7C3AED");
+  const [catColor, setCatColor] = useState("#2D3748");
   const [catIcono, setCatIcono] = useState("Tag");
   const [creandoCat, setCreandoCat] = useState(false);
 
@@ -136,7 +136,7 @@ export function AccountModal({
     setLimite(cuenta?.limiteCredito ? String(cuenta.limiteCredito) : "");
     setCorte(cuenta?.fechaCorte ? String(cuenta.fechaCorte) : "");
     setPago(cuenta?.fechaPago ? String(cuenta.fechaPago) : "");
-    setColor(cuenta?.color ?? "#7C3AED");
+    setColor(cuenta?.color ?? "#2D3748");
     setIcono(cuenta?.icono ?? "Wallet");
     setMovMonto("");
     setMovCategoria("");
@@ -144,7 +144,7 @@ export function AccountModal({
     setMovDescripcion("");
     setNuevaCat(false);
     setCatNombre("");
-    setCatColor("#7C3AED");
+    setCatColor("#2D3748");
     setCatIcono("Tag");
     setPagoOrigen("");
     setPagoMonto("");

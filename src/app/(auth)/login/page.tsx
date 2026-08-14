@@ -96,7 +96,7 @@ export default function LoginPage() {
         className="glass relative w-full max-w-sm rounded-3xl border border-border p-8 shadow-2xl shadow-black/40"
       >
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="btn-gradient flex size-14 items-center justify-center rounded-2xl shadow-lg shadow-purple-900/50">
+          <div className="btn-gradient flex size-14 items-center justify-center rounded-2xl shadow-lg shadow-slate-900/50">
             <Wallet className="size-7 text-white" />
           </div>
           <div>

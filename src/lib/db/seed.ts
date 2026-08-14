@@ -23,10 +23,10 @@ function fmt(d: Date) {
 const DAY = 86400000;
 
 const accountDefs = [
-  { nombre: "Banco Principal", tipo: "debito" as const, saldoInicial: 350000, color: "#7C3AED", icono: "Landmark" },
-  { nombre: "Banco Secundario", tipo: "debito" as const, saldoInicial: 120000, color: "#3B82F6", icono: "Landmark" },
-  { nombre: "Mercado Pago", tipo: "debito" as const, saldoInicial: 45000, color: "#06D6A0", icono: "Wallet" },
-  { nombre: "Visa", tipo: "credito" as const, saldoInicial: 0, limiteCredito: 800000, fechaCorte: 12, fechaPago: 5, color: "#EF4444", icono: "CreditCard" },
+  { nombre: "Banco Principal", tipo: "debito" as const, saldoInicial: 350000, color: "#2D3748", icono: "Landmark" },
+  { nombre: "Banco Secundario", tipo: "debito" as const, saldoInicial: 120000, color: "#4A5568", icono: "Landmark" },
+  { nombre: "Mercado Pago", tipo: "debito" as const, saldoInicial: 45000, color: "#5A8F6D", icono: "Wallet" },
+  { nombre: "Visa", tipo: "credito" as const, saldoInicial: 0, limiteCredito: 800000, fechaCorte: 12, fechaPago: 5, color: "#B86A62", icono: "CreditCard" },
   { nombre: "Mastercard", tipo: "credito" as const, saldoInicial: 0, limiteCredito: 600000, fechaCorte: 22, fechaPago: 8, color: "#F59E0B", icono: "CreditCard" },
   { nombre: "Efectivo", tipo: "efectivo" as const, saldoInicial: 30000, color: "#84CC16", icono: "Banknote" },
   { nombre: "Inversiones", tipo: "inversion" as const, saldoInicial: 500000, color: "#10B981", icono: "TrendingUp" },
@@ -40,17 +40,17 @@ const categoryDefs: Array<{
   grupo: "necesidades" | "deseos" | "ahorro" | null;
 }> = [
   { nombre: "Comida y Supermercado", tipo: "gasto" as const, icono: "Utensils", color: "#F59E0B", grupo: "necesidades" },
-  { nombre: "Transporte", tipo: "gasto" as const, icono: "Car", color: "#3B82F6", grupo: "necesidades" },
+  { nombre: "Transporte", tipo: "gasto" as const, icono: "Car", color: "#4A5568", grupo: "necesidades" },
   { nombre: "Servicios y Alquiler", tipo: "gasto" as const, icono: "Home", color: "#8B5CF6", grupo: "necesidades" },
-  { nombre: "Salud", tipo: "gasto" as const, icono: "HeartPulse", color: "#EF4444", grupo: "necesidades" },
+  { nombre: "Salud", tipo: "gasto" as const, icono: "HeartPulse", color: "#B86A62", grupo: "necesidades" },
   { nombre: "Salidas y Ocio", tipo: "gasto" as const, icono: "Clapperboard", color: "#EC4899", grupo: "deseos" },
   { nombre: "Shopping", tipo: "gasto" as const, icono: "ShoppingBag", color: "#14B8A6", grupo: "deseos" },
   { nombre: "Suscripciones", tipo: "gasto" as const, icono: "Tv", color: "#6366F1", grupo: "deseos" },
   { nombre: "Viajes", tipo: "gasto" as const, icono: "Plane", color: "#0EA5E9", grupo: "deseos" },
   { nombre: "Educación", tipo: "gasto" as const, icono: "GraduationCap", color: "#F97316", grupo: "deseos" },
-  { nombre: "Ahorro e Inversión", tipo: "gasto" as const, icono: "PiggyBank", color: "#06D6A0", grupo: "ahorro" },
+  { nombre: "Ahorro e Inversión", tipo: "gasto" as const, icono: "PiggyBank", color: "#5A8F6D", grupo: "ahorro" },
   { nombre: "Pago de deudas", tipo: "gasto" as const, icono: "HandCoins", color: "#A855F7", grupo: null },
-  { nombre: "Sueldo", tipo: "ingreso" as const, icono: "Wallet", color: "#06D6A0", grupo: null },
+  { nombre: "Sueldo", tipo: "ingreso" as const, icono: "Wallet", color: "#5A8F6D", grupo: null },
   { nombre: "Freelance", tipo: "ingreso" as const, icono: "Laptop", color: "#10B981", grupo: null },
   { nombre: "Otros Ingresos", tipo: "ingreso" as const, icono: "Gift", color: "#84CC16", grupo: null },
   { nombre: "Cobro de deudas", tipo: "ingreso" as const, icono: "HandCoins", color: "#A855F7", grupo: null },
@@ -92,9 +92,9 @@ export async function seedBudgetGroups() {
   const existing = await db.select({ id: budgetGroups.id }).from(budgetGroups).execute();
   if (existing.length > 0) return;
   const defs: Array<{ key: "necesidades" | "deseos" | "ahorro"; label: string; color: string; icono: string; orden: number }> = [
-    { key: "necesidades", label: "Necesidades", color: "#3B82F6", icono: "House", orden: 1 },
+    { key: "necesidades", label: "Necesidades", color: "#4A5568", icono: "House", orden: 1 },
     { key: "deseos", label: "Deseos", color: "#EC4899", icono: "Sparkles", orden: 2 },
-    { key: "ahorro", label: "Ahorro", color: "#06D6A0", icono: "PiggyBank", orden: 3 },
+    { key: "ahorro", label: "Ahorro", color: "#5A8F6D", icono: "PiggyBank", orden: 3 },
   ];
   await db.insert(budgetGroups).values(defs).execute();
 }

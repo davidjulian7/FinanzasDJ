@@ -32,7 +32,7 @@ export const accounts = pgTable("accounts", {
   limiteCredito: doublePrecision("limite_credito"),
   fechaCorte: integer("fecha_corte"),
   fechaPago: integer("fecha_pago"),
-  color: text("color").notNull().default("#7C3AED"),
+  color: text("color").notNull().default("#2D3748"),
   icono: text("icono").notNull().default("Wallet"),
 });
 
@@ -50,7 +50,7 @@ export const expenseCategories = pgTable("expense_categories", {
   userId: uuid("user_id").notNull(),
   nombre: text("nombre").notNull(),
   icono: text("icono").notNull().default("Tag"),
-  color: text("color").notNull().default("#7C3AED"),
+  color: text("color").notNull().default("#2D3748"),
   tipo: text("tipo", { enum: ["gasto", "ingreso"] }).notNull().default("gasto"),
   budgetGroupId: integer("budget_group_id").references(() => budgetGroups.id),
   activo: boolean("activo").notNull().default(true),
@@ -120,7 +120,7 @@ export const apartados = pgTable(
     cuentaId: integer("account_id").references(() => accounts.id),
     fechaInicio: text("fecha_inicio").notNull(),
     icono: text("icono").notNull().default("Wallet"),
-    color: text("color").notNull().default("#7C3AED"),
+    color: text("color").notNull().default("#2D3748"),
     nota: text("nota"),
     activo: boolean("activo").notNull().default(true),
     orden: integer("orden").notNull().default(0),

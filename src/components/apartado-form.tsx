@@ -30,7 +30,7 @@ import { formatCurrency } from "@/lib/format";
 import { useReference } from "@/stores/reference";
 import type { ApartadoRow, ApartadoPeriodicidad } from "@/lib/types";
 
-const COLORES = ["#7C3AED", "#3B82F6", "#06D6A0", "#F59E0B", "#EF4444", "#10B981", "#0EA5E9", "#EC4899", "#84CC16", "#A855F7"];
+const COLORES = ["#2D3748", "#4A5568", "#5A8F6D", "#C9A24A", "#B86A62", "#8C94A3", "#7D9C88", "#D2B56C", "#C98A7E", "#A3B79A"];
 const ICONOS = ["Home", "Phone", "Dumbbell", "Laptop", "Tv", "Clapperboard", "Car", "Plane", "PiggyBank", "HeartPulse", "GraduationCap", "Wallet"];
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",

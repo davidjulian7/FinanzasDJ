@@ -90,7 +90,16 @@ export default function DebtsPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {porPagar.map((d) => (
-                  <DebtCard key={d.id} debt={d} onPagar={setPagando} onEditar={setEditando} onEliminar={setEliminando} />
+                  <DebtCard
+                    key={d.id}
+                    debt={d}
+                    onPagar={setPagando}
+                    onEditar={(deuda) => {
+                      setEditando(deuda);
+                      setCrearOpen(true);
+                    }}
+                    onEliminar={setEliminando}
+                  />
                 ))}
               </div>
             )}
@@ -120,7 +129,16 @@ export default function DebtsPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {porCobrar.map((d) => (
-                  <DebtCard key={d.id} debt={d} onPagar={setPagando} onEditar={setEditando} onEliminar={setEliminando} />
+                  <DebtCard
+                    key={d.id}
+                    debt={d}
+                    onPagar={setPagando}
+                    onEditar={(deuda) => {
+                      setEditando(deuda);
+                      setCrearOpen(true);
+                    }}
+                    onEliminar={setEliminando}
+                  />
                 ))}
               </div>
             )}

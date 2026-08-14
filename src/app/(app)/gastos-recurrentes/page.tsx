@@ -159,7 +159,7 @@ export default function RecurringExpensesPage() {
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
                         className="flex size-10 shrink-0 items-center justify-center rounded-lg"
-                        style={{ backgroundColor: `${item.expenseCategory?.color || "#7C3AED"}22`, color: item.expenseCategory?.color || "#7C3AED" }}
+                        style={{ backgroundColor: `${item.expenseCategory?.color || "#2D3748"}22`, color: item.expenseCategory?.color || "#2D3748" }}
                       >
                         <Tag className="size-4" />
                       </div>

@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-sidebar/60 backdrop-blur-xl md:flex">
         <Link href="/dashboard" className="flex items-center gap-3 px-6 py-6">
-          <div className="btn-gradient flex size-10 items-center justify-center rounded-xl shadow-lg shadow-purple-900/40">
+          <div className="btn-gradient flex size-10 items-center justify-center rounded-xl shadow-lg shadow-slate-900/40">
             <Wallet className="size-5 text-white" />
           </div>
           <div>
@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-300",
                   active
-                    ? "btn-gradient text-white shadow-lg shadow-purple-900/40"
+                    ? "btn-gradient text-white shadow-lg shadow-slate-900/40"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >

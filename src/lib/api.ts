@@ -6,6 +6,14 @@ export class ApiError extends Error {
   }
 }
 
+export const DATA_CHANGED_EVENT = "finanzas:data-changed";
+
+function notifyDataChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
+  }
+}
+
 async function request<T>(method: string, url: string, body?: unknown, cache?: RequestCache): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -23,6 +31,7 @@ async function request<T>(method: string, url: string, body?: unknown, cache?: R
     }
     throw new ApiError(res.status, message);
   }
+  if (method !== "GET") notifyDataChanged();
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }

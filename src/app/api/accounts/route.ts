@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       limiteCredito: body.limiteCredito ?? null,
       fechaCorte: body.fechaCorte ?? null,
       fechaPago: body.fechaPago ?? null,
-      color: body.color ?? "#7C3AED",
+      color: body.color ?? "#2D3748",
       icono: body.icono ?? "Wallet",
     });
     return NextResponse.json({ id: row?.id }, { status: 201 });

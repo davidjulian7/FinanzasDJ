@@ -275,7 +275,7 @@ export async function crearCuenta(userId: string, input: AccountInput) {
       limiteCredito: numOrNull(input.limiteCredito),
       fechaCorte: numOrNull(input.fechaCorte),
       fechaPago: numOrNull(input.fechaPago),
-      color: input.color ?? "#7C3AED",
+      color: input.color ?? "#2D3748",
       icono: input.icono ?? "Wallet",
     })
     .returning({ id: accounts.id })
@@ -297,7 +297,7 @@ export async function actualizarCuenta(userId: string, id: number, input: Accoun
       limiteCredito: numOrNull(input.limiteCredito),
       fechaCorte: numOrNull(input.fechaCorte),
       fechaPago: numOrNull(input.fechaPago),
-      color: input.color ?? "#7C3AED",
+      color: input.color ?? "#2D3748",
       icono: input.icono ?? "Wallet",
     })
     .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))

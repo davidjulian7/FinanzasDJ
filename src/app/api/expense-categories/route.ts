@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           nombre,
           icono: icono ?? "Tag",
-          color: color ?? "#7C3AED",
+          color: color ?? "#2D3748",
           budgetGroupId: budgetGroupId ?? null,
           tipo: body?.tipo === "ingreso" ? "ingreso" : "gasto",
           activo: true,

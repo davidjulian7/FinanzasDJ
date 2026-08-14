@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
           cuentaId: cuentaId != null ? Number(cuentaId) : null,
           fechaInicio: todayISO(),
           icono: icono || "Wallet",
-          color: color || "#7C3AED",
+          color: color || "#2D3748",
           nota: nota?.trim() || null,
         })
         .returning({ id: apartados.id })

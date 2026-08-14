@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, Droplets, TrendingDown, TrendingUp, Plus, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useRangeDates } from "@/stores/range";
-import { api } from "@/lib/api";
+import { api, DATA_CHANGED_EVENT } from "@/lib/api";
 import type { DashboardData } from "@/lib/types";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { DateRangePicker } from "@/components/date-range-picker";
@@ -39,6 +39,19 @@ export default function DashboardPage() {
   useEffect(() => {
     cargar();
   }, [cargar, refresh]);
+
+  useEffect(() => {
+    const bump = () => setRefresh((r) => r + 1);
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) bump();
+    };
+    window.addEventListener(DATA_CHANGED_EVENT, bump);
+    window.addEventListener("pageshow", onShow);
+    return () => {
+      window.removeEventListener(DATA_CHANGED_EVENT, bump);
+      window.removeEventListener("pageshow", onShow);
+    };
+  }, []);
 
   const key = `${range.from}_${range.to}`;
 
@@ -74,10 +87,10 @@ export default function DashboardPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <SummaryCard label="Patrimonio neto" value={formatCurrency(data.summary.patrimonio)} icon={Wallet} color="#7C3AED" />
-                <SummaryCard label="Liquidez" value={formatCurrency(data.summary.liquidez)} icon={Droplets} color="#3B82F6" hint="Débito + efectivo" />
-                <SummaryCard label="Deudas de tarjetas" value={formatCurrency(data.summary.deudas)} icon={TrendingDown} color="#EF4444" />
-                <SummaryCard label="Inversiones" value={formatCurrency(data.summary.inversiones)} icon={TrendingUp} color="#06D6A0" />
+                <SummaryCard label="Patrimonio neto" value={formatCurrency(data.summary.patrimonio)} icon={Wallet} color="#2D3748" />
+                <SummaryCard label="Liquidez" value={formatCurrency(data.summary.liquidez)} icon={Droplets} color="#4A5568" hint="Débito + efectivo" />
+                <SummaryCard label="Deudas de tarjetas" value={formatCurrency(data.summary.deudas)} icon={TrendingDown} color="#B86A62" />
+                <SummaryCard label="Inversiones" value={formatCurrency(data.summary.inversiones)} icon={TrendingUp} color="#5A8F6D" />
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -159,14 +172,14 @@ export default function DashboardPage() {
 
       <button
         onClick={() => setModalOpen(true)}
-        className="btn-gradient fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold text-white shadow-2xl shadow-purple-900/50 transition-transform hover:scale-105 md:bottom-8 md:right-8"
+        className="btn-gradient fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold text-white shadow-2xl shadow-slate-900/50 transition-transform hover:scale-105 md:bottom-8 md:right-8"
       >
         <Plus className="size-5" />
         <span className="hidden sm:inline">Registrar movimiento</span>
         <span className="sm:hidden">Movimiento</span>
       </button>
 
-      <TransactionModal open={modalOpen} onOpenChange={setModalOpen} onSaved={() => setRefresh((r) => r + 1)} />
+      <TransactionModal open={modalOpen} onOpenChange={setModalOpen} />
     </div>
   );
 }

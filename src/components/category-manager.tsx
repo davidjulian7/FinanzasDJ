@@ -35,7 +35,7 @@ import { IconByName, ICON_NAMES } from "@/components/icon-registry";
 import { cn } from "@/lib/utils";
 import type { ExpenseCategoryRow } from "@/lib/types";
 
-const COLORES = ["#7C3AED", "#3B82F6", "#06D6A0", "#F59E0B", "#EF4444", "#10B981", "#0EA5E9", "#EC4899", "#84CC16", "#A855F7"];
+const COLORES = ["#2D3748", "#4A5568", "#5A8F6D", "#C9A24A", "#B86A62", "#8C94A3", "#7D9C88", "#D2B56C", "#C98A7E", "#A3B79A"];
 
 interface GrupoRow {
   id: number;
@@ -49,7 +49,7 @@ export function CategoryManager() {
 
   const [tipo, setTipo] = useState<"gasto" | "ingreso">("gasto");
   const [nombre, setNombre] = useState("");
-  const [color, setColor] = useState("#7C3AED");
+  const [color, setColor] = useState("#2D3748");
   const [icono, setIcono] = useState("Tag");
   const [grupo, setGrupo] = useState("");
   const [grupos, setGrupos] = useState<GrupoRow[]>([]);
@@ -87,7 +87,7 @@ export function CategoryManager() {
       });
       toast.success("Categoría creada");
       setNombre("");
-      setColor("#7C3AED");
+      setColor("#2D3748");
       setIcono("Tag");
       setGrupo("");
       await reload();

@@ -81,8 +81,8 @@ export function NetWorthChart({ data, height = 260 }: { data: Array<{ label: str
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="gradPatrimonio" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7C3AED" stopOpacity={0.45} />
-              <stop offset="100%" stopColor="#7C3AED" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#4A5568" stopOpacity={0.45} />
+              <stop offset="100%" stopColor="#4A5568" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -96,7 +96,7 @@ export function NetWorthChart({ data, height = 260 }: { data: Array<{ label: str
             domain={["auto", "auto"]}
           />
           <Tooltip content={<ChartTooltip />} />
-          <Area type="monotone" dataKey="valor" name="Patrimonio" stroke="#7C3AED" strokeWidth={2.5} fill="url(#gradPatrimonio)" />
+          <Area type="monotone" dataKey="valor" name="Patrimonio" stroke="#4A5568" strokeWidth={2.5} fill="url(#gradPatrimonio)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>

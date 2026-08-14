@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
 import { getReglaPct, getIngresoQuincena, ingresoKey, type ReglaPct } from "@/lib/settings";
+import { montoQuincena } from "@/lib/recurrentes";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
     const groupsWithData = groups.map((g) => ({
       ...g,
       categorias: catsByGroup.get(g.id) ?? [],
-      recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + r.monto, 0),
+      recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + montoQuincena(r.monto, r.frecuencia), 0),
     }));
 
     const sinGrupo = expCats.filter((c) => !c.budgetGroupId);
@@ -103,13 +104,11 @@ export async function POST(req: NextRequest) {
     }
 
     await db.transaction(async (tx) => {
-      if (ingresoNum > 0) {
-        await tx
-          .insert(settings)
-          .values({ userId: user.id, key: ingresoKey(anio, mes, quincena), value: JSON.stringify(ingresoNum) })
-          .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(ingresoNum) } })
-          .execute();
-      }
+      await tx
+        .insert(settings)
+        .values({ userId: user.id, key: ingresoKey(anio, mes, quincena), value: JSON.stringify(ingresoNum) })
+        .onConflictDoUpdate({ target: [settings.userId, settings.key], set: { value: JSON.stringify(ingresoNum) } })
+        .execute();
 
       await tx
         .insert(settings)

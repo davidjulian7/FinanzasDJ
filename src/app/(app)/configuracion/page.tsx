@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CategoryManager } from "@/components/category-manager";
 
 export default function ConfiguracionPage() {
   const user = useAuthStore((s) => s.user);
@@ -123,6 +124,8 @@ export default function ConfiguracionPage() {
           </CardContent>
         </Card>
       </div>
+
+      <CategoryManager />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
 import { getReglaPct, getIngresoQuincena, type ReglaPct } from "@/lib/settings";
 import { quincenaRango } from "@/lib/ranges";
+import { montoQuincena } from "@/lib/recurrentes";
 import { cicloInfo, cuotaEfectiva, contribucionQuincena } from "@/lib/apartados";
 
 export const dynamic = "force-dynamic";
@@ -129,7 +130,7 @@ export async function GET(req: NextRequest) {
         progreso,
         disponible: presupuestado - Math.round(gastado) - reservado,
         reservado,
-        recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + r.monto, 0),
+        recurrentTotal: (recurrentByGroup.get(g.id) ?? []).reduce((sum, r) => sum + montoQuincena(r.monto, r.frecuencia), 0),
         apartados: pendientes,
       };
       })

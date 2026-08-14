@@ -4,6 +4,7 @@ import { expenseCategories, budgetGroups } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
+import { seedCategoriesForUser } from "@/lib/db/seed";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,15 @@ export async function GET() {
   try {
     const user = await requireUser();
     if (!user) return unauthorized();
-    const [cats, groups] = await Promise.all([
+    const [allCats, groups] = await Promise.all([
       db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute(),
       db.select().from(budgetGroups).execute(),
     ]);
+    if (allCats.length === 0) {
+      await seedCategoriesForUser(user.id);
+      allCats.push(...(await db.select().from(expenseCategories).where(eq(expenseCategories.userId, user.id)).execute()));
+    }
+    const cats = allCats.filter((c) => c.activo);
     const groupById = new Map(groups.map((g) => [g.id, g]));
 
     const withGroup = cats.map((c) => ({

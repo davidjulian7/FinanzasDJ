@@ -181,7 +181,7 @@ export default function BudgetExecutionPage() {
                 </span>
               )}
               {g.recurrentTotal > 0 && (
-                <span>{formatCurrency(g.recurrentTotal)} reservados en recurrentes</span>
+                <span>{formatCurrency(g.recurrentTotal)} reservados en recurrentes por quincena</span>
               )}
             </div>
 

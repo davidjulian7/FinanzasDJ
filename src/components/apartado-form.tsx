@@ -175,6 +175,7 @@ export function ApartadoForm({
         toast.success("Apartado creado");
       }
       onSaved();
+      onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo guardar");
     } finally {

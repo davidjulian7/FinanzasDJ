@@ -211,7 +211,7 @@ export default function BudgetConfigPage() {
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {formatCurrency(grupoMontos[g.key])} del ingreso
-                        {g.recurrentTotal > 0 && ` · ${formatCurrency(g.recurrentTotal)} en recurrentes`}
+                        {g.recurrentTotal > 0 && ` · ${formatCurrency(g.recurrentTotal)} en recurrentes por quincena`}
                       </p>
                     </div>
                   </div>

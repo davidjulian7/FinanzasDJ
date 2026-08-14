@@ -44,3 +44,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return handleError(e);
   }
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    const { id } = await params;
+
+    const existing = (
+      await db
+        .select()
+        .from(expenseCategories)
+        .where(and(eq(expenseCategories.id, Number(id)), eq(expenseCategories.userId, user.id)))
+        .execute()
+    )[0];
+    if (!existing) {
+      return apiError("Categoría no encontrada");
+    }
+
+    await db
+      .update(expenseCategories)
+      .set({ activo: false })
+      .where(and(eq(expenseCategories.id, Number(id)), eq(expenseCategories.userId, user.id)))
+      .execute();
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return handleError(e);
+  }
+}

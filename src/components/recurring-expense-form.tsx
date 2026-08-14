@@ -69,7 +69,7 @@ const FRECUENCIAS = [
 
 export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved }: RecurringExpenseFormProps) {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Array<{ id: number; nombre: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: number; nombre: string; tipo: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>([]);
   const [accounts, setAccounts] = useState<Array<{ id: number; nombre: string; tipo: string }>>([]);
   const [groups, setGroups] = useState<Array<{ id: number; key: string; label: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -89,7 +89,7 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
   const fetchRefs = useCallback(async () => {
     try {
       const [cats, accs, grps] = await Promise.all([
-        api.get<Array<{ id: number; nombre: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>("/api/expense-categories"),
+        api.get<Array<{ id: number; nombre: string; tipo: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>("/api/expense-categories"),
         api.get<Array<{ id: number; nombre: string; tipo: string }>>("/api/accounts"),
         api.get<Array<{ id: number; key: string; label: string }>>("/api/budget-groups"),
       ]);
@@ -196,7 +196,7 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
           <div className="space-y-2">
             <Label>Frecuencia *</Label>
             <Select value={formData.frecuencia} onValueChange={(v) => handleChange("frecuencia", v as "semanal" | "quincenal" | "mensual" | "anual")}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona frecuencia" />
               </SelectTrigger>
               <SelectContent>
@@ -226,15 +226,17 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
           <div className="space-y-2">
             <Label>Categoría de gasto *</Label>
             <Select value={String(formData.expenseCategoryId)} onValueChange={(v) => handleChange("expenseCategoryId", Number(v))}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona categoría" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>
-                    {c.nombre}
-                  </SelectItem>
-                ))}
+                {categories
+                  .filter((c) => c.tipo === "gasto")
+                  .map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.nombre}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -242,7 +244,7 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
           <div className="space-y-2">
             <Label>Cuenta de pago *</Label>
             <Select value={String(formData.accountId)} onValueChange={(v) => handleChange("accountId", Number(v))}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona cuenta" />
               </SelectTrigger>
               <SelectContent>
@@ -258,7 +260,7 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
           <div className="space-y-2">
             <Label>Grupo de presupuesto *</Label>
             <Select value={String(formData.budgetGroupId)} onValueChange={(v) => handleChange("budgetGroupId", Number(v))}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona grupo" />
               </SelectTrigger>
               <SelectContent>

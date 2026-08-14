@@ -1,5 +1,5 @@
 import { createAdminClient } from "../src/lib/supabase/admin";
-import { seedBudgetGroups } from "../src/lib/db/seed";
+import { seedBudgetGroups, seedCategoriesForUser } from "../src/lib/db/seed";
 
 // Crea un usuario con acceso a la aplicación (no hay registro público).
 // Usa la service role key de Supabase (SUPABASE_SERVICE_ROLE_KEY en .env.local).
@@ -45,6 +45,7 @@ async function main() {
   }
 
   await seedBudgetGroups();
+  await seedCategoriesForUser(data.user.id);
 
   console.log(`Usuario creado: ${data.user.email} (${nombre}) — id ${data.user.id}`);
   console.log("Ya puede iniciar sesión en /login.");

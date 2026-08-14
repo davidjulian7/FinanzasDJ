@@ -49,6 +49,8 @@ const ICONS: Record<string, LucideIcon> = {
   Dumbbell,
 };
 
+export const ICON_NAMES = Object.keys(ICONS);
+
 export function IconByName({ name, className, style }: { name: string; className?: string; style?: React.CSSProperties }) {
   const C = ICONS[name] ?? Tag;
   return <C className={className} style={style} />;

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const LOGIN_PATH = "/login";
-const PUBLIC_API = ["/api/auth/login", "/api/auth/logout", "/api/auth/me", "/api/auth/register", "/api/health"];
+const PUBLIC_API = ["/api/auth/login", "/api/auth/logout", "/api/auth/me", "/api/auth/register", "/api/auth/forgot-password", "/api/health"];
 const METODOS_MUTANTES = ["POST", "PUT", "PATCH", "DELETE"];
 
 export async function middleware(req: NextRequest) {
@@ -57,6 +57,10 @@ export async function middleware(req: NextRequest) {
     if (authed) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
+    return res;
+  }
+
+  if (pathname === "/reset-password") {
     return res;
   }
 

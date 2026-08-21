@@ -42,7 +42,7 @@ const categoryDefs: Array<{
   { nombre: "Comida y Supermercado", tipo: "gasto" as const, icono: "Utensils", color: "#F59E0B", grupo: "necesidades" },
   { nombre: "Transporte", tipo: "gasto" as const, icono: "Car", color: "#4A5568", grupo: "necesidades" },
   { nombre: "Servicios y Alquiler", tipo: "gasto" as const, icono: "Home", color: "#8B5CF6", grupo: "necesidades" },
-  { nombre: "Salud", tipo: "gasto" as const, icono: "HeartPulse", color: "#B86A62", grupo: "necesidades" },
+  { nombre: "Salud", tipo: "gasto" as const, icono: "HeartPulse", color: "#0EA5E9", grupo: "necesidades" },
   { nombre: "Salidas y Ocio", tipo: "gasto" as const, icono: "Clapperboard", color: "#EC4899", grupo: "deseos" },
   { nombre: "Shopping", tipo: "gasto" as const, icono: "ShoppingBag", color: "#14B8A6", grupo: "deseos" },
   { nombre: "Suscripciones", tipo: "gasto" as const, icono: "Tv", color: "#6366F1", grupo: "deseos" },

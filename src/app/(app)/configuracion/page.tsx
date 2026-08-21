@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { User, KeyRound } from "lucide-react";
+import { User, KeyRound, Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,10 @@ export default function ConfiguracionPage() {
   const [nueva, setNueva] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [cambiando, setCambiando] = useState(false);
+
+  const [showActual, setShowActual] = useState(false);
+  const [showNueva, setShowNueva] = useState(false);
+  const [showConfirmar, setShowConfirmar] = useState(false);
 
   async function guardarPerfil() {
     setGuardando(true);
@@ -108,15 +112,64 @@ export default function ConfiguracionPage() {
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="cfg-actual">Contraseña actual</Label>
-              <Input id="cfg-actual" type="password" value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" />
+              <div className="relative">
+                <Input
+                  id="cfg-actual"
+                  type={showActual ? "text" : "password"}
+                  value={actual}
+                  onChange={(e) => setActual(e.target.value)}
+                  autoComplete="current-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowActual(!showActual)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showActual ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="cfg-nueva">Contraseña nueva</Label>
-              <Input id="cfg-nueva" type="password" value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />
+              <div className="relative">
+                <Input
+                  id="cfg-nueva"
+                  type={showNueva ? "text" : "password"}
+                  value={nueva}
+                  onChange={(e) => setNueva(e.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                  autoComplete="new-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNueva(!showNueva)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showNueva ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="cfg-confirmar">Confirmar contraseña nueva</Label>
-              <Input id="cfg-confirmar" type="password" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" />
+              <div className="relative">
+                <Input
+                  id="cfg-confirmar"
+                  type={showConfirmar ? "text" : "password"}
+                  value={confirmar}
+                  onChange={(e) => setConfirmar(e.target.value)}
+                  autoComplete="new-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmar(!showConfirmar)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirmar ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </div>
             <Button className="btn-gradient gap-1.5" disabled={cambiando} onClick={cambiarPassword}>
               {cambiando ? "Cambiando…" : "Cambiar contraseña"}

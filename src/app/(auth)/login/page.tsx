@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, Lock, Wallet, User } from "lucide-react";
+import { Mail, Lock, Wallet, User, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/lib/api";
@@ -21,6 +21,10 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [registrado, setRegistrado] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
@@ -125,26 +129,33 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <Label htmlFor="password">Contraseña</Label>
-                <a href="/reset-password" className="font-medium text-brand hover:underline">
-                  ¿Olvidaste tu contraseña?
-                </a>
+<div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <a href="/reset-password" className="font-medium text-brand hover:underline">
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="pl-9 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-9"
-                />
-              </div>
-            </div>
             <Button type="submit" className="btn-gradient w-full py-5 text-base" disabled={loading}>
               {loading ? "Ingresando…" : "Ingresar"}
             </Button>
@@ -182,36 +193,50 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password-registro">Contraseña</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password-registro"
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
-                  className="pl-9"
-                />
+<div className="space-y-2">
+                <Label htmlFor="password-registro">Contraseña</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="password-registro"
+                    type={showRegPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mínimo 8 caracteres"
+                    className="pl-9 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showRegPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password-confirm">Repite la contraseña</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password-confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-9"
-                />
+              <div className="space-y-2">
+                <Label htmlFor="password-confirm">Repite la contraseña</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="password-confirm"
+                    type={showRegConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="pl-9 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showRegConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
             <Button type="submit" className="btn-gradient w-full py-5 text-base" disabled={loading}>
               {loading ? "Creando…" : "Crear perfil"}
             </Button>

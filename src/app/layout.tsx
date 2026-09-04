@@ -3,6 +3,8 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemedToaster } from "@/components/themed-toaster";
+import { ServiceWorkerRegistrar } from "@/components/sw-registrar";
+import { OfflineIndicator } from "@/components/offline-indicator";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -47,6 +49,8 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
           <ThemedToaster />
+          <ServiceWorkerRegistrar />
+          <OfflineIndicator />
         </ThemeProvider>
       </body>
     </html>

@@ -56,8 +56,11 @@ export async function getPendingCount(): Promise<number> {
   return all.length;
 }
 
+const isOnline = () => typeof navigator !== "undefined" && navigator.onLine;
+
 export async function processQueue(): Promise<{ synced: number; failed: number }> {
   if (syncing) return { synced: 0, failed: 0 };
+  if (!isOnline()) return { synced: 0, failed: 0 };
   syncing = true;
 
   let synced = 0;
@@ -68,6 +71,8 @@ export async function processQueue(): Promise<{ synced: number; failed: number }
     const sorted = entries.sort((a, b) => a.timestamp - b.timestamp);
 
     for (const entry of sorted) {
+      if (!isOnline()) break;
+
       try {
         const res = await fetch(entry.url, {
           method: entry.method,
@@ -83,7 +88,7 @@ export async function processQueue(): Promise<{ synced: number; failed: number }
           await remove(entry.id);
           failed++;
         } else {
-          if (entry.retries >= 5) {
+          if (entry.retries >= 10) {
             await remove(entry.id);
             failed++;
           } else {
@@ -91,18 +96,13 @@ export async function processQueue(): Promise<{ synced: number; failed: number }
           }
         }
       } catch {
-        if (entry.retries >= 5) {
-          await remove(entry.id);
-          failed++;
-        } else {
-          await updateRetry(entry.id, entry.retries + 1);
-        }
+        break;
       }
     }
   } finally {
     syncing = false;
   }
 
-  emitChange();
+  if (synced > 0) emitChange();
   return { synced, failed };
 }

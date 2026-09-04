@@ -60,26 +60,6 @@ function invalidateOnMutation(url: string): void {
   for (const store of related) idb.clearStore(store).catch(() => {});
 }
 
-let offlineQueue: Array<{ method: string; url: string; body?: unknown; resolve: (v: unknown) => void; reject: (e: Error) => void }> = [];
-
-function processOfflineQueue(): void {
-  if (!isOnline()) return;
-  const queue = [...offlineQueue];
-  offlineQueue = [];
-  for (const item of queue) {
-    rawRequest(item.method, item.url, item.body)
-      .then((v) => item.resolve(v))
-      .catch((e) => item.reject(e));
-  }
-}
-
-if (typeof window !== "undefined") {
-  window.addEventListener("online", () => {
-    processOfflineQueue();
-    sync.processQueue().then(() => notifyDataChanged());
-  });
-}
-
 async function rawRequest<T>(method: string, url: string, body?: unknown, cache?: RequestCache): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -99,6 +79,21 @@ async function rawRequest<T>(method: string, url: string, body?: unknown, cache?
   return res.json() as Promise<T>;
 }
 
+async function cacheResponse<T>(store: StoreName, data: T): Promise<void> {
+  if (data === undefined || data === null) return;
+  try {
+    if (Array.isArray(data)) {
+      if (data.length > 0) {
+        await idb.clearStore(store);
+        await idb.putMany(store, data as unknown as object[]);
+      }
+    } else if (typeof data === "object") {
+      await idb.clearStore(store);
+      await idb.put(store, data as unknown as object);
+    }
+  } catch { /* noop */ }
+}
+
 async function request<T>(method: string, url: string, body?: unknown, cache?: RequestCache): Promise<T> {
   const store = matchStore(url);
 
@@ -106,13 +101,7 @@ async function request<T>(method: string, url: string, body?: unknown, cache?: R
     if (isOnline()) {
       try {
         const data = await rawRequest<T>(method, url, body, cache);
-        if (store && data !== undefined && data !== null) {
-          const arr = Array.isArray(data) ? data : [data];
-          if (arr.length > 0 && typeof arr[0] === "object" && "id" in arr[0]) {
-            await idb.clearStore(store);
-            await idb.putMany(store, arr as unknown as object[]);
-          }
-        }
+        if (store) await cacheResponse(store, data);
         return data;
       } catch {
         if (store) {
@@ -131,9 +120,8 @@ async function request<T>(method: string, url: string, body?: unknown, cache?: R
   }
 
   if (!isOnline()) {
-    return new Promise<T>((resolve, reject) => {
-      offlineQueue.push({ method, url, body, resolve: resolve as (v: unknown) => void, reject });
-    });
+    await sync.enqueue({ method, url, body });
+    return { ok: true, offline: true } as unknown as T;
   }
 
   try {
@@ -144,7 +132,7 @@ async function request<T>(method: string, url: string, body?: unknown, cache?: R
   } catch (e) {
     if (e instanceof ApiError && e.status >= 500) {
       await sync.enqueue({ method, url, body });
-      throw new ApiError(0, "Guardado offline. Se sincronizará cuando vuelva la conexión.");
+      return { ok: true, offline: true } as unknown as T;
     }
     throw e;
   }
@@ -158,4 +146,4 @@ export const api = {
   delete: <T>(url: string) => request<T>("DELETE", url),
 };
 
-export { isOnline, processOfflineQueue };
+export { isOnline };

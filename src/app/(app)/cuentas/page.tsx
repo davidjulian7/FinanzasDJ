@@ -38,8 +38,9 @@ export default function AccountsPage() {
     try {
       setCuentas(await api.get<AccountRow[]>("/api/accounts"));
     } catch {
-      toast.error("No se pudieron cargar las cuentas");
-      setCuentas([]);
+      if (!cuentas?.length) {
+        toast.error("Sin conexión. Abre la app con internet primero.");
+      }
     }
   }, []);
 

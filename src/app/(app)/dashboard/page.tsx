@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, Droplets, TrendingDown, TrendingUp, Plus, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useRangeDates } from "@/stores/range";
-import { api, DATA_CHANGED_EVENT } from "@/lib/api";
+import { api, DATA_CHANGED_EVENT, isOnline } from "@/lib/api";
 import type { DashboardData } from "@/lib/types";
 import type { CreditCardNotification } from "@/lib/credit-card-notifications";
 import { formatCurrency, formatShortDate } from "@/lib/format";
@@ -32,7 +32,11 @@ export default function DashboardPage() {
       const d = await api.get<DashboardData>(`/api/dashboard?from=${range.from}&to=${range.to}`);
       setData(d);
     } catch {
-      toast.error("No se pudo cargar el dashboard");
+      if (!isOnline()) {
+        if (!data) toast.error("Sin conexión. Abre la app con internet primero para cachear datos.");
+      } else {
+        toast.error("No se pudo cargar el dashboard");
+      }
     } finally {
       setLoading(false);
     }
@@ -111,7 +115,15 @@ export default function DashboardPage() {
           className="space-y-6"
         >
           {!data ? (
-            <LoadingSkeleton />
+            loading ? (
+              <LoadingSkeleton />
+            ) : (
+              <div className="glass rounded-2xl border border-border py-14 text-center text-sm text-muted-foreground">
+                {!isOnline()
+                  ? "Sin conexión y sin datos en caché. Abre la app con internet primero para poder usarla offline."
+                  : "No se pudieron cargar los datos del dashboard."}
+              </div>
+            )
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -38,18 +38,12 @@ export default function DebtsPage() {
   const [pagando, setPagando] = useState<DebtRow | null>(null);
 
   const cargar = useCallback(async () => {
-    try {
-      const [d, c] = await Promise.all([
-        api.get<DebtRow[]>("/api/debts"),
-        api.get<CuotaRow[]>("/api/cuotas"),
-      ]);
-      setDeudas(d);
-      setCuotas(c);
-    } catch {
-      toast.error("No se pudieron cargar las deudas");
-      setDeudas([]);
-      setCuotas([]);
-    }
+    const [d, c] = await Promise.allSettled([
+      api.get<DebtRow[]>("/api/debts"),
+      api.get<CuotaRow[]>("/api/cuotas"),
+    ]);
+    if (d.status === "fulfilled") setDeudas(d.value);
+    if (c.status === "fulfilled") setCuotas(c.value);
   }, []);
 
   useEffect(() => {

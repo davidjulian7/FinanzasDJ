@@ -34,10 +34,8 @@ export const useReferenceStore = create<ReferenceState>()((set, get) => ({
       .then(([accounts, expenseCategories]) => {
         set({ accounts, expenseCategories, loaded: true, loading: false });
       })
-      .catch((e) => {
-        set({ loading: false });
-        inflight = null;
-        throw e;
+      .catch(() => {
+        set({ loaded: true, loading: false });
       })
       .finally(() => {
         inflight = null;

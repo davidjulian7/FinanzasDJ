@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WifiOff, RefreshCw } from "lucide-react";
 import { onSyncChange, processQueue } from "@/lib/sync-queue";
 
 export function OfflineIndicator() {
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
-  const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -26,10 +26,12 @@ export function OfflineIndicator() {
   }, []);
 
   useEffect(() => {
-    if (!online || pending === 0 || syncing) return;
-    setSyncing(true);
-    processQueue().finally(() => setSyncing(false));
-  }, [online, pending, syncing]);
+    if (!online || pending === 0 || syncingRef.current) return;
+    syncingRef.current = true;
+    processQueue().finally(() => {
+      syncingRef.current = false;
+    });
+  }, [online, pending]);
 
   if (online && pending === 0) return null;
 
@@ -46,13 +48,15 @@ export function OfflineIndicator() {
               </span>
             )}
           </>
-        ) : syncing ? (
+        ) : syncingRef.current ? (
           <>
             <RefreshCw className="size-3.5 animate-spin text-primary" />
             <span className="text-muted-foreground">Sincronizando…</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px]">
-              {pending} pendiente{pending > 1 ? "s" : ""}
-            </span>
+            {pending > 0 && (
+              <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px]">
+                {pending} pendiente{pending > 1 ? "s" : ""}
+              </span>
+            )}
           </>
         ) : pending > 0 ? (
           <>

@@ -184,6 +184,7 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
             <Input
               id="monto"
               type="number"
+              inputMode="decimal"
               min={0}
               step={0.01}
               value={formData.monto}

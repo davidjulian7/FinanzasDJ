@@ -201,7 +201,7 @@ export function ApartadoForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="ap-objetivo">Monto objetivo (pago) *</Label>
-              <Input id="ap-objetivo" type="number" min="0" step="0.01" value={form.montoObjetivo} onChange={(e) => set("montoObjetivo", e.target.value)} className="font-mono" placeholder="3000" />
+              <Input id="ap-objetivo" type="number" inputMode="decimal" min="0" step="0.01" value={form.montoObjetivo} onChange={(e) => set("montoObjetivo", e.target.value)} className="font-mono" placeholder="3000" />
             </div>
             <div className="space-y-2">
               <Label>Periodicidad del pago *</Label>
@@ -262,6 +262,7 @@ export function ApartadoForm({
             {form.cuotaFija ? (
               <Input
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
                 value={form.montoQuincena}

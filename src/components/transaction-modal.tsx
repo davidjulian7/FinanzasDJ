@@ -176,7 +176,7 @@ export function TransactionModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="tx-monto">Monto</Label>
-              <Input id="tx-monto" type="number" min="0" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="0.00" className="font-mono" />
+              <Input id="tx-monto" type="number" inputMode="decimal" min="0" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="0.00" className="font-mono" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tx-fecha">Fecha</Label>

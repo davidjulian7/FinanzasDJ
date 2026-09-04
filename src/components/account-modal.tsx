@@ -639,6 +639,7 @@ export function AccountModal({
                     <Input
                       id="ac-pago-monto"
                       type="number"
+                      inputMode="decimal"
                       min="0"
                       step="0.01"
                       value={pagoMonto}
@@ -686,6 +687,7 @@ export function AccountModal({
                       <Input
                         id="cm-monto"
                         type="number"
+                        inputMode="decimal"
                         min="0"
                         step="0.01"
                         value={mesesMonto}
@@ -887,6 +889,7 @@ function CamposCuenta({
         <Input
           id="ac-saldo"
           type="number"
+          inputMode="decimal"
           value={saldoActual}
           onChange={(e) => setSaldoActual(e.target.value)}
           className="font-mono"
@@ -903,7 +906,7 @@ function CamposCuenta({
         <>
           <div className="space-y-2">
             <Label htmlFor="ac-limite">Límite de crédito</Label>
-            <Input id="ac-limite" type="number" value={limite} onChange={(e) => setLimite(e.target.value)} className="font-mono" placeholder="0" />
+            <Input id="ac-limite" type="number" inputMode="decimal" value={limite} onChange={(e) => setLimite(e.target.value)} className="font-mono" placeholder="0" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="ac-corte">Día de corte</Label>
@@ -1011,6 +1014,7 @@ function MovimientoForm({
           <Input
             id="mv-monto"
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={monto}

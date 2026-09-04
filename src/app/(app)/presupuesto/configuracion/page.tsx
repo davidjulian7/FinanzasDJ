@@ -166,6 +166,7 @@ export default function BudgetConfigPage() {
                   <label className="text-xs text-muted-foreground">Ingreso de la quincena</label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     min={0}
                     step={100}
                     value={ingresosQuincena}

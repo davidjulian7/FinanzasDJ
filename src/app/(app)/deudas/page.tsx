@@ -373,11 +373,11 @@ function DebtForm({
             </div>
             <div className="space-y-2">
               <Label>Monto original</Label>
-              <Input type="number" min={0} value={montoOriginal} onChange={(e) => setMontoOriginal(e.target.value)} className="font-mono" placeholder="0" />
+              <Input type="number" inputMode="decimal" min={0} value={montoOriginal} onChange={(e) => setMontoOriginal(e.target.value)} className="font-mono" placeholder="0" />
             </div>
             <div className="space-y-2">
               <Label>Saldo pendiente</Label>
-              <Input type="number" min={0} value={saldo} onChange={(e) => setSaldo(e.target.value)} className="font-mono" placeholder="0" />
+              <Input type="number" inputMode="decimal" min={0} value={saldo} onChange={(e) => setSaldo(e.target.value)} className="font-mono" placeholder="0" />
             </div>
           </div>
           <DialogFooter>
@@ -439,7 +439,7 @@ function PaymentDialog({ debt, onClose, onDone }: { debt: DebtRow | null; onClos
         <form onSubmit={registrar} className="space-y-3 py-2">
           <div className="space-y-2">
             <Label htmlFor="pago-monto">Monto</Label>
-            <Input id="pago-monto" type="number" min={0} step="0.01" autoFocus value={monto} onChange={(e) => setMonto(e.target.value)} className="font-mono" placeholder="0.00" />
+            <Input id="pago-monto" type="number" inputMode="decimal" min={0} step="0.01" autoFocus value={monto} onChange={(e) => setMonto(e.target.value)} className="font-mono" placeholder="0.00" />
           </div>
           <div className="space-y-2">
             <Label>Cuenta asociada (opcional)</Label>

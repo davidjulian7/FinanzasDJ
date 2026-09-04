@@ -103,7 +103,7 @@ export function ApartadoPagoModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="ap-monto">Monto</Label>
-              <Input id="ap-monto" type="number" min="0" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} className="font-mono" />
+              <Input id="ap-monto" type="number" inputMode="decimal" min="0" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} className="font-mono" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ap-fecha">Fecha</Label>

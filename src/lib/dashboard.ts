@@ -211,6 +211,7 @@ export async function getDashboard(userId: string, range: DateRange) {
       ahorro: { presupuestado: Math.round(presupuesto.ahorro.presupuestado), gastado: Math.round(presupuesto.ahorro.gastado), apartado: Math.round(presupuesto.ahorro.apartado) },
     },
     ingresosMes: Math.round(ingresosMes),
+    regla,
     recientes,
     reservado: Math.round(reservadoTotal),
   };

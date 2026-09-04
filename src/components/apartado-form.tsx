@@ -128,6 +128,12 @@ export function ApartadoForm({
   const quincenasCiclo = form.periodicidad === "mensual" ? 2 : 24;
   const sugerida = Number.isFinite(objetivo) && objetivo > 0 ? Math.round((objetivo / quincenasCiclo) * 100) / 100 : null;
 
+  useEffect(() => {
+    if (form.cuotaFija && sugerida != null) {
+      set("montoQuincena", String(sugerida));
+    }
+  }, [sugerida, form.cuotaFija]);
+
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((p) => ({ ...p, [k]: v }));
 
   const categoriasGasto = expenseCategories.filter((c) => c.tipo === "gasto");

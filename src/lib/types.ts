@@ -80,6 +80,7 @@ export interface DashboardData {
     { presupuestado: number; gastado: number; apartado: number }
   >;
   ingresosMes: number;
+  regla: { necesidades: number; deseos: number; ahorro: number };
   recientes: TxRow[];
   reservado: number;
 }

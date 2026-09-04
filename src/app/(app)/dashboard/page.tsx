@@ -159,7 +159,9 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="glass glow-hover rounded-2xl border border-border p-5 lg:col-span-1">
                   <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Presupuesto 50/30/20</h3>
+                    <h3 className="text-sm font-semibold">
+                      Presupuesto {data.regla.necesidades}/{data.regla.deseos}/{data.regla.ahorro}
+                    </h3>
                     <Link href="/presupuesto/configuracion" className="text-xs text-primary hover:underline">
                       Editar
                     </Link>

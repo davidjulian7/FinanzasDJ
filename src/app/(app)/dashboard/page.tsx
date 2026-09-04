@@ -8,8 +8,10 @@ import { toast } from "sonner";
 import { useRangeDates } from "@/stores/range";
 import { api, DATA_CHANGED_EVENT } from "@/lib/api";
 import type { DashboardData } from "@/lib/types";
+import type { CreditCardNotification } from "@/lib/credit-card-notifications";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { DateRangePicker } from "@/components/date-range-picker";
+import { CreditCardNotificationToast } from "@/components/credit-card-notification-toast";
 import { SummaryCard } from "@/components/summary-card";
 import { BudgetBar } from "@/components/budget-bar";
 import { TransactionRow } from "@/components/transaction-row";
@@ -51,6 +53,32 @@ export default function DashboardPage() {
       window.removeEventListener(DATA_CHANGED_EVENT, bump);
       window.removeEventListener("pageshow", onShow);
     };
+  }, []);
+
+  useEffect(() => {
+    async function checkNotifications() {
+      try {
+        const notificaciones = await api.get<CreditCardNotification[]>("/api/credit-card-notifications");
+        for (const n of notificaciones) {
+          toast.info(`Día de corte: ${n.tarjetaNombre}`, {
+            description: `Deuda: ${formatCurrency(n.deudaActual)} · Disponible en débito: ${formatCurrency(n.saldoCuentaPago)}`,
+            duration: 15000,
+            action: {
+              label: "Ver detalle",
+              onClick: () => {
+                toast(
+                  <CreditCardNotificationToast notification={n} />,
+                  { duration: 20000 }
+                );
+              },
+            },
+          });
+        }
+      } catch {
+        // Silenciar errores de notificaciones
+      }
+    }
+    checkNotifications();
   }, []);
 
   const key = `${range.from}_${range.to}`;

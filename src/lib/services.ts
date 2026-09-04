@@ -366,7 +366,11 @@ export async function registrarPagoDeuda(
 
   await db.transaction(async (tx) => {
     const nuevoSaldo = Math.round((debt.saldoPendiente - monto) * 100) / 100;
-    await tx.update(debts).set({ saldoPendiente: nuevoSaldo }).where(and(eq(debts.id, debtId), eq(debts.userId, userId))).execute();
+    if (nuevoSaldo <= 0) {
+      await tx.delete(debts).where(and(eq(debts.id, debtId), eq(debts.userId, userId))).execute();
+    } else {
+      await tx.update(debts).set({ saldoPendiente: nuevoSaldo }).where(and(eq(debts.id, debtId), eq(debts.userId, userId))).execute();
+    }
     if (cuentaId) {
       const tipo: TxTipo = debt.tipo === "por_pagar" ? "gasto" : "ingreso";
       const cuentaRows = await tx

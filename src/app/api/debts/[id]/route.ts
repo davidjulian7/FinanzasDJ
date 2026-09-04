@@ -31,17 +31,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       saldoPendiente = s;
     }
 
-    await db
-      .update(debts)
-      .set({
-        nombre: body.nombre ?? actual.nombre,
-        personaOAcreedor: body.personaOAcreedor ?? actual.personaOAcreedor,
-        montoOriginal,
-        saldoPendiente,
-        tipo: body.tipo ?? actual.tipo,
-      })
-      .where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id)))
-      .execute();
+    if (saldoPendiente <= 0) {
+      await db.delete(debts).where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id))).execute();
+    } else {
+      await db
+        .update(debts)
+        .set({
+          nombre: body.nombre ?? actual.nombre,
+          personaOAcreedor: body.personaOAcreedor ?? actual.personaOAcreedor,
+          montoOriginal,
+          saldoPendiente,
+          tipo: body.tipo ?? actual.tipo,
+        })
+        .where(and(eq(debts.id, Number(id)), eq(debts.userId, user.id)))
+        .execute();
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof Error) return apiError(e.message);

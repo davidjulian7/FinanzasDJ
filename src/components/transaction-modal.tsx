@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -51,6 +51,11 @@ export function TransactionModal({
   const [notas, setNotas] = useState("");
   const [apartados, setApartados] = useState<ApartadoRow[]>([]);
   const [apartadoId, setApartadoId] = useState<number | null>(null);
+  const [descriptions, setDescriptions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+  const descRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +76,10 @@ export function TransactionModal({
           /* opcional */
         });
     }
+    api
+      .get<string[]>("/api/transactions/descriptions")
+      .then((list) => setDescriptions(list))
+      .catch(() => {});
   }, [open, tx]);
 
   const apartadoDeCategoria = useMemo(() => {
@@ -87,6 +96,16 @@ export function TransactionModal({
     () => categoriasFiltradas.find((c) => c.id === Number(categoryId)),
     [categoriasFiltradas, categoryId]
   );
+
+  const filteredDescriptions = useMemo(() => {
+    if (!descripcion.trim()) return descriptions.slice(0, 8);
+    const q = descripcion.toLowerCase();
+    return descriptions.filter((d) => d.toLowerCase().includes(q) && d.toLowerCase() !== q).slice(0, 8);
+  }, [descripcion, descriptions]);
+
+  useEffect(() => {
+    setHighlightIdx(-1);
+  }, [descripcion]);
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
@@ -147,6 +166,16 @@ export function TransactionModal({
     }
   }
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) && e.target !== descRef.current) {
+        setShowSuggestions(false);
+      }
+    }
+    if (showSuggestions) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSuggestions]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -172,7 +201,60 @@ export function TransactionModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-2">
               <Label htmlFor="tx-descripcion">Descripción</Label>
-              <Input id="tx-descripcion" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej: Supermercado" />
+              <div className="relative">
+                <Input
+                  ref={descRef}
+                  id="tx-descripcion"
+                  value={descripcion}
+                  onChange={(e) => {
+                    setDescripcion(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onKeyDown={(e) => {
+                    if (!showSuggestions || filteredDescriptions.length === 0) return;
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setHighlightIdx((i) => (i + 1) % filteredDescriptions.length);
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setHighlightIdx((i) => (i <= 0 ? filteredDescriptions.length - 1 : i - 1));
+                    } else if (e.key === "Enter" && highlightIdx >= 0) {
+                      e.preventDefault();
+                      setDescripcion(filteredDescriptions[highlightIdx]);
+                      setShowSuggestions(false);
+                    } else if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  placeholder="Ej: Supermercado"
+                  autoComplete="off"
+                />
+                {showSuggestions && filteredDescriptions.length > 0 && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-border bg-popover shadow-md"
+                  >
+                    {filteredDescriptions.map((d, i) => (
+                      <button
+                        key={d}
+                        type="button"
+                        className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
+                          i === highlightIdx ? "bg-accent text-accent-foreground" : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setDescripcion(d);
+                          setShowSuggestions(false);
+                        }}
+                        onMouseEnter={() => setHighlightIdx(i)}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="tx-monto">Monto</Label>

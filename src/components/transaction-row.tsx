@@ -46,7 +46,7 @@ export function TransactionRow({
         </p>
       </div>
       {showActions && (onEdit || onDelete) && (
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="flex shrink-0 items-center gap-1 opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
           {onEdit && (
             <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(tx)}>
               <Pencil className="size-3.5" />

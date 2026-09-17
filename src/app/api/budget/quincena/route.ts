@@ -5,7 +5,7 @@ import { eq, and, gte, lte } from "drizzle-orm";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
 import { getReglaPct, getIngresoQuincena, type ReglaPct } from "@/lib/settings";
-import { quincenaRango } from "@/lib/ranges";
+import { periodoQuincenaValido, quincenaRango } from "@/lib/ranges";
 import { montoQuincena } from "@/lib/recurrentes";
 import { cicloInfo, cuotaEfectiva, contribucionQuincena, gastadoEnCategoria } from "@/lib/apartados";
 
@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     const anio = Number(searchParams.get("anio"));
     const quincena = Number(searchParams.get("quincena") ?? 1);
 
-    if (!mes || !anio) {
-      return apiError("Parámetros mes y año requeridos");
+    if (!periodoQuincenaValido(anio, mes, quincena)) {
+      return apiError("El año, mes o quincena no son válidos");
     }
 
     const range = quincenaRango(anio, mes, quincena);

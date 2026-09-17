@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { PiggyBank, Check } from "lucide-react";
-import { formatCurrency, monthKey } from "@/lib/format";
+import { formatCurrency, monthKey, parseMonthKey } from "@/lib/format";
 import { api } from "@/lib/api";
 import { BudgetBar } from "@/components/budget-bar";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,8 @@ export default function BudgetExecutionPage() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [m, a] = mes.split("-").map(Number);
-      const d = await api.get<BudgetExecutionData>(`/api/budget/quincena?mes=${m}&anio=${a}&quincena=${quincena}`);
+      const periodo = parseMonthKey(mes);
+      const d = await api.get<BudgetExecutionData>(`/api/budget/quincena?mes=${periodo.mes}&anio=${periodo.anio}&quincena=${quincena}`);
       setData(d);
     } catch {
       console.error("Error cargando ejecución");
@@ -43,15 +43,15 @@ export default function BudgetExecutionPage() {
     setQuincena(hoy.getDate() <= 15 ? 1 : 2);
   }, [mes]);
 
-  const [m, a] = mes.split("-").map(Number);
+  const periodo = parseMonthKey(mes);
 
   async function apartar(g: BudgetExecutionGroup, apartadoId: number) {
     setApartandoId(apartadoId);
     try {
       const res = await api.post<{ monto: number }>("/api/apartados/contribuciones", {
         apartadoId,
-        anio: a,
-        mes: m,
+        anio: periodo.anio,
+        mes: periodo.mes,
         quincena,
       });
       toast.success(`Apartado ${formatCurrency(res.monto)}`);
@@ -66,7 +66,7 @@ export default function BudgetExecutionPage() {
   async function quitar(g: BudgetExecutionGroup, apartadoId: number) {
     setApartandoId(apartadoId);
     try {
-      await api.delete(`/api/apartados/contribuciones?apartadoId=${apartadoId}&anio=${a}&mes=${m}&quincena=${quincena}`);
+      await api.delete(`/api/apartados/contribuciones?apartadoId=${apartadoId}&anio=${periodo.anio}&mes=${periodo.mes}&quincena=${quincena}`);
       cargar();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo deshacer");

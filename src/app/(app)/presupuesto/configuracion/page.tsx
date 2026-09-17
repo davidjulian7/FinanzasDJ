@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Save, Minus } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, parseMonthKey } from "@/lib/format";
 import { api } from "@/lib/api";
 import { useReference } from "@/stores/reference";
 import { BudgetRuleEditor } from "@/components/budget-rule-editor";
@@ -36,8 +36,8 @@ export default function BudgetConfigPage() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [m, a] = mes.split("-").map(Number);
-      const data = await api.get<BudgetConfigData>(`/api/budget/config?mes=${m}&anio=${a}&quincena=${quincena}`);
+      const periodo = parseMonthKey(mes);
+      const data = await api.get<BudgetConfigData>(`/api/budget/config?mes=${periodo.mes}&anio=${periodo.anio}&quincena=${quincena}`);
       setIngresosQuincena(data.ingresosQuincena > 0 ? String(data.ingresosQuincena) : "");
       setRule(data.regla);
       setGroups(data.groups);
@@ -74,10 +74,10 @@ export default function BudgetConfigPage() {
     }
     setSaving(true);
     try {
-      const [m, a] = mes.split("-").map(Number);
+      const periodo = parseMonthKey(mes);
       await api.post("/api/budget/config", {
-        mes: m,
-        anio: a,
+        mes: periodo.mes,
+        anio: periodo.anio,
         quincena,
         ingresosQuincena: ingresos,
         regla: rule,

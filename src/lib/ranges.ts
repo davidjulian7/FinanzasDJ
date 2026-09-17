@@ -60,6 +60,12 @@ export function quincenaDelDia(day: number): 1 | 2 {
   return day <= 15 ? 1 : 2;
 }
 
+export function periodoQuincenaValido(anio: number, mes: number, quincena: number): boolean {
+  return Number.isInteger(anio) && anio >= 2000 && anio <= 2100
+    && Number.isInteger(mes) && mes >= 1 && mes <= 12
+    && (quincena === 1 || quincena === 2);
+}
+
 export function quincenaRango(anio: number, mes: number, quincena: number): DateRange {
   const ultimoDia = new Date(anio, mes, 0).getDate();
   const desde = quincena === 1 ? 1 : 16;

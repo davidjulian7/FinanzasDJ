@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, ArrowRight, Wrench } from "lucide-react";
@@ -21,6 +21,13 @@ const TIPO_LABEL: Record<string, string> = {
   inversion: "Inversión",
 };
 
+const TIPO_ORDEN: Record<string, number> = {
+  debito: 0,
+  credito: 1,
+  efectivo: 3,
+  inversion: 2,
+};
+
 export default function AjustePage() {
   const router = useRouter();
   const [status, setStatus] = useState<AjusteStatus | null>(null);
@@ -30,6 +37,31 @@ export default function AjustePage() {
   const [procesando, setProcesando] = useState(false);
   const [completado, setCompletado] = useState(false);
   const [resultado, setResultado] = useState<{ transaccionesCreadas: number; diferenciaTotal: number } | null>(null);
+
+  const cuentasOrdenadas = useMemo(() => {
+    const sorted = [...cuentas].sort((a, b) => {
+      const oa = TIPO_ORDEN[a.tipo] ?? 2;
+      const ob = TIPO_ORDEN[b.tipo] ?? 2;
+      if (oa !== ob) return oa - ob;
+      return 0;
+    });
+
+    const resultado: CuentaAjuste[] = [];
+    const debitos = sorted.filter((c) => c.tipo === "debito");
+    const creditos = sorted.filter((c) => c.tipo === "credito");
+    const invertidos = sorted.filter((c) => c.tipo === "inversion");
+    const efectivos = sorted.filter((c) => c.tipo === "efectivo");
+
+    const maxLen = Math.max(debitos.length, creditos.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (debitos[i]) resultado.push(debitos[i]);
+      if (creditos[i]) resultado.push(creditos[i]);
+    }
+    for (const inv of invertidos) resultado.push(inv);
+    for (const ef of efectivos) resultado.push(ef);
+
+    return resultado;
+  }, [cuentas]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -194,7 +226,7 @@ export default function AjustePage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {cuentas.map((cuenta) => {
+        {cuentasOrdenadas.map((cuenta) => {
           const diff = getDiferencia(cuenta);
           const esCredito = cuenta.tipo === "credito";
           return (

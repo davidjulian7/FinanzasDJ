@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, ArrowRight, Wrench } from "lucide-react";
 import { toast } from "sonner";
-import { api, DATA_CHANGED_EVENT } from "@/lib/api";
+import { api } from "@/lib/api";
+import { calcularDiferenciaAjuste, resumirAjuste, type ResultadoAjuste } from "@/lib/ajuste-calculos";
 import { formatCurrency, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { IconByName } from "@/components/icon-registry";
@@ -14,13 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CuentaAjuste, AjusteStatus } from "@/lib/ajuste";
-
-const TIPO_LABEL: Record<string, string> = {
-  debito: "Débito",
-  credito: "Crédito",
-  efectivo: "Efectivo",
-  inversion: "Inversión",
-};
 
 const TIPO_ORDEN: Record<string, number> = {
   debito: 0,
@@ -48,7 +42,7 @@ export default function AjustePage() {
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
   const [completado, setCompletado] = useState(false);
-  const [resultado, setResultado] = useState<{ transaccionesCreadas: number; diferenciaTotal: number } | null>(null);
+  const [resultado, setResultado] = useState<ResultadoAjuste | null>(null);
 
   const cuentasOrdenadas = useMemo(() => {
     return [...cuentas].sort((a, b) => {
@@ -96,23 +90,7 @@ export default function AjustePage() {
     if (raw === "" || raw === undefined || raw === null) return null;
     const valor = parseFloat(raw);
     if (!Number.isFinite(valor)) return null;
-    if (cuenta.tipo === "credito") {
-      return cuenta.saldoActual - valor;
-    }
-    return valor - cuenta.saldoActual;
-  }
-
-  function getDiferenciaTotal(): number {
-    let total = 0;
-    for (const c of cuentas) {
-      const raw = saldos[c.cuentaId];
-      if (raw === "" || raw === undefined) continue;
-      const valor = parseFloat(raw);
-      if (!Number.isFinite(valor)) continue;
-      const diff = getDiferencia(c);
-      if (diff !== null) total += diff;
-    }
-    return total;
+    return calcularDiferenciaAjuste(cuenta.tipo, cuenta.saldoActual, valor);
   }
 
   function isFormValid(): boolean {
@@ -144,15 +122,18 @@ export default function AjustePage() {
           saldoReal: parseFloat(saldos[c.cuentaId]),
         }));
 
-      const result = await api.post<{ transaccionesCreadas: number; diferenciaTotal: number }>(
+      const result = await api.post<ResultadoAjuste>(
         "/api/ajuste",
-        { fecha: todayISO(), cuentas: cuentasPayload }
+        { fecha: todayISO(), cuentas: cuentasPayload },
+        { requireOnline: true }
       );
+
+      if (![result?.transaccionesCreadas, result?.diferenciaTotal, result?.totalGastos, result?.totalIngresos].every(Number.isFinite)) {
+        throw new Error("No se pudo confirmar el resultado del ajuste. Revisa los saldos antes de volver a intentarlo.");
+      }
 
       setResultado(result);
       setCompletado(true);
-
-      window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
 
       toast.success(`Ajuste aplicado. ${result.transaccionesCreadas} transacciones creadas.`);
     } catch (e: unknown) {
@@ -189,14 +170,25 @@ export default function AjustePage() {
         >
           <CheckCircle2 className="mx-auto mb-4 size-16 text-positive" />
           <h2 className="mb-2 text-xl font-bold">Ajuste completado</h2>
-          <p className="mb-6 text-sm text-muted-foreground">
-            Se crearon <strong>{resultado.transaccionesCreadas}</strong> transacciones de ajuste
-            {resultado.diferenciaTotal !== 0 && (
-              <> por un total de <strong className={resultado.diferenciaTotal < 0 ? "text-destructive" : "text-positive"}>
-                {formatCurrency(Math.abs(resultado.diferenciaTotal))}
-              </strong></>
-            )}
+          <p className="mb-4 text-sm text-muted-foreground">
+            {resultado.transaccionesCreadas === 0
+              ? "Los saldos ya coincidían. No se crearon transacciones."
+              : <>Se crearon <strong>{resultado.transaccionesCreadas}</strong> transacciones de ajuste.</>}
           </p>
+          <dl className="mb-6 flex flex-col gap-2 text-sm">
+            <div className="flex justify-between gap-6">
+              <dt>Gastos no registrados</dt>
+              <dd className="font-mono text-destructive">{formatCurrency(resultado.totalGastos)}</dd>
+            </div>
+            <div className="flex justify-between gap-6">
+              <dt>Ingresos no registrados</dt>
+              <dd className="font-mono text-positive">{formatCurrency(resultado.totalIngresos)}</dd>
+            </div>
+            <div className="flex justify-between gap-6">
+              <dt>Diferencia neta</dt>
+              <dd className="font-mono">{formatCurrency(resultado.diferenciaTotal)}</dd>
+            </div>
+          </dl>
           <Button onClick={() => router.push("/dashboard")} className="gap-2">
             Ir al dashboard <ArrowRight className="size-4" />
           </Button>
@@ -205,7 +197,8 @@ export default function AjustePage() {
     );
   }
 
-  const diferenciaTotal = getDiferenciaTotal();
+  const resumen = resumirAjuste(cuentas.map((cuenta) => getDiferencia(cuenta) ?? 0));
+  const diferenciaTotal = resumen.diferenciaTotal;
   const haySaldos = isFormValid();
   const cuentasConSaldo = cuentas.filter((c) => {
     const raw = saldos[c.cuentaId];
@@ -324,11 +317,9 @@ export default function AjustePage() {
             </span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            {diferenciaTotal < 0
-              ? "Se crearán transacciones de gasto por el dinero no registrado"
-              : diferenciaTotal > 0
-                ? "Se crearán transacciones de ingreso por el dinero extra encontrado"
-                : "Las cuentas están cuadradas — no se crearán transacciones"}
+            {resumen.transaccionesCreadas === 0
+              ? "Las cuentas están cuadradas — no se crearán transacciones"
+              : `Se registrarán ${formatCurrency(resumen.totalGastos)} de gastos y ${formatCurrency(resumen.totalIngresos)} de ingresos.`}
           </p>
         </motion.div>
       )}

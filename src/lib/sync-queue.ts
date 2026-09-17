@@ -1,4 +1,5 @@
 import * as idb from "./db-client";
+import { notifyDataChanged } from "./data-changes";
 
 export interface SyncEntry {
   id: string;
@@ -58,13 +59,13 @@ export async function getPendingCount(): Promise<number> {
 
 const isOnline = () => typeof navigator !== "undefined" && navigator.onLine;
 
-export async function processQueue(): Promise<{ synced: number; failed: number }> {
-  if (syncing) return { synced: 0, failed: 0 };
-  if (!isOnline()) return { synced: 0, failed: 0 };
+export async function processQueue(): Promise<{ synced: number; failed: number; errors: string[] }> {
+  if (syncing || !isOnline()) return { synced: 0, failed: 0, errors: [] };
   syncing = true;
 
   let synced = 0;
   let failed = 0;
+  const errors: string[] = [];
 
   try {
     const entries = await getAll();
@@ -79,21 +80,29 @@ export async function processQueue(): Promise<{ synced: number; failed: number }
           headers: entry.body !== undefined ? { "Content-Type": "application/json" } : undefined,
           body: entry.body !== undefined ? JSON.stringify(entry.body) : undefined,
           cache: "no-store",
+          signal: AbortSignal.timeout(15000),
         });
 
         if (res.ok) {
           await remove(entry.id);
           synced++;
+          await notifyDataChanged(entry.url);
+        } else if (res.status === 401 || res.status === 429) {
+          // Una sesión vencida o un límite temporal no debe borrar cambios.
+          break;
         } else if (res.status >= 400 && res.status < 500) {
+          const data = await res.json().catch(() => null);
+          errors.push(typeof data?.error === "string" ? data.error : "Un cambio pendiente fue rechazado. Revisa los datos e inténtalo de nuevo.");
           await remove(entry.id);
           failed++;
-        } else {
-          if (entry.retries >= 10) {
-            await remove(entry.id);
-            failed++;
-          } else {
-            await updateRetry(entry.id, entry.retries + 1);
+          if (res.status === 409 && entry.url.split("?")[0] === "/api/ajuste") {
+            // El ajuste pudo guardarse aunque su respuesta original no llegara.
+            await notifyDataChanged(entry.url);
           }
+        } else {
+          await updateRetry(entry.id, entry.retries + 1);
+          // Conserva los cambios y su orden hasta que el servidor se recupere.
+          break;
         }
       } catch {
         break;
@@ -104,5 +113,5 @@ export async function processQueue(): Promise<{ synced: number; failed: number }
   }
 
   if (synced > 0) emitChange();
-  return { synced, failed };
+  return { synced, failed, errors };
 }

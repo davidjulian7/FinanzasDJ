@@ -2,10 +2,18 @@ import { and, eq } from "drizzle-orm";
 import { db } from "./db";
 import { accounts, expenseCategories, settings, transactions } from "./db/schema";
 import { isoDate } from "./format";
+import { calcularDiferenciaAjuste, resumirAjuste, type ResultadoAjuste } from "./ajuste-calculos";
 
 const DIAS_PARA_AJUSTE = 7;
 const KEY_ULTIMO_AJUSTE = "ultimo_ajuste_fecha";
 const CATEGORIA_NOMBRE = "Ajuste / Dinero no registrado";
+type AjusteDb = Pick<typeof db, "select" | "insert">;
+
+export class AjusteError extends Error {
+  constructor(message: string, public status = 400) {
+    super(message);
+  }
+}
 
 export interface AjusteStatus {
   necesitaAjuste: boolean;
@@ -27,8 +35,8 @@ export interface AjusteInput {
   cuentas: { cuentaId: number; saldoReal: number }[];
 }
 
-export async function getAjusteStatus(userId: string): Promise<AjusteStatus> {
-  const rows = await db
+export async function getAjusteStatus(userId: string, queryDb: AjusteDb = db): Promise<AjusteStatus> {
+  const rows = await queryDb
     .select({ value: settings.value })
     .from(settings)
     .where(and(eq(settings.userId, userId), eq(settings.key, KEY_ULTIMO_AJUSTE)))
@@ -78,8 +86,8 @@ export async function getCuentasParaAjuste(userId: string): Promise<CuentaAjuste
   }));
 }
 
-async function getOrCreateCategoriaAjuste(userId: string): Promise<number> {
-  const existing = await db
+async function getOrCreateCategoriaAjuste(userId: string, tx: AjusteDb): Promise<number> {
+  const existing = await tx
     .select({ id: expenseCategories.id })
     .from(expenseCategories)
     .where(and(eq(expenseCategories.userId, userId), eq(expenseCategories.nombre, CATEGORIA_NOMBRE)))
@@ -87,7 +95,7 @@ async function getOrCreateCategoriaAjuste(userId: string): Promise<number> {
 
   if (existing[0]) return existing[0].id;
 
-  const rows = await db
+  const rows = await tx
     .insert(expenseCategories)
     .values({
       userId,
@@ -104,93 +112,73 @@ async function getOrCreateCategoriaAjuste(userId: string): Promise<number> {
   return rows[0].id;
 }
 
-function calcularDiferencia(tipo: string, saldoActual: number, saldoReal: number): number {
-  if (tipo === "credito") {
-    return saldoActual - saldoReal;
+export async function procesarAjuste(userId: string, input: AjusteInput): Promise<ResultadoAjuste> {
+  if (!input || !Array.isArray(input.cuentas) || input.cuentas.length === 0) {
+    throw new AjusteError("Debes ingresar al menos un saldo");
   }
-  return saldoReal - saldoActual;
-}
-
-export async function procesarAjuste(userId: string, input: AjusteInput) {
-  const status = await getAjusteStatus(userId);
-  if (!status.necesitaAjuste && status.fechaUltimoAjuste) {
-    throw new Error("No se requiere ajuste aún. Han pasado menos de 7 días desde el último ajuste.");
+  const ids = new Set<number>();
+  for (const item of input.cuentas) {
+    if (!item || !Number.isInteger(item.cuentaId) || item.cuentaId <= 0 || !Number.isFinite(item.saldoReal)) {
+      throw new AjusteError("Los saldos y las cuentas deben ser válidos");
+    }
+    if (ids.has(item.cuentaId)) throw new AjusteError("Una cuenta no puede aparecer dos veces en el ajuste");
+    ids.add(item.cuentaId);
   }
-
-  const categoriaId = await getOrCreateCategoriaAjuste(userId);
   const fecha = input.fecha || isoDate(new Date());
-
-  const cuentasLock = await db
-    .select()
-    .from(accounts)
-    .where(eq(accounts.userId, userId))
-    .for("update")
-    .execute();
-
-  const cuentasMap = new Map(cuentasLock.map((c) => [c.id, c]));
-
-  let transaccionesCreadas = 0;
-  let diferenciaTotal = 0;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(Date.parse(fecha)) || new Date(fecha).toISOString().slice(0, 10) !== fecha) {
+    throw new AjusteError("La fecha del ajuste no es válida");
+  }
 
   return db.transaction(async (tx) => {
+    const cuentasLock = await tx
+      .select()
+      .from(accounts)
+      .where(eq(accounts.userId, userId))
+      .orderBy(accounts.id)
+      .for("update")
+      .execute();
+    const cuentasMap = new Map(cuentasLock.map((c) => [c.id, c]));
+    if (input.cuentas.some((item) => !cuentasMap.has(item.cuentaId))) {
+      throw new AjusteError("Una de las cuentas ya no está disponible. Recarga el ajuste.");
+    }
+
+    const status = await getAjusteStatus(userId, tx);
+    if (!status.necesitaAjuste && status.fechaUltimoAjuste) {
+      throw new AjusteError("Ya se realizó un ajuste en los últimos 7 días. Revisa los saldos en el dashboard.", 409);
+    }
+
+    const diferencias: number[] = [];
+    let categoriaId: number | null = null;
     for (const item of input.cuentas) {
-      const cuenta = cuentasMap.get(item.cuentaId);
-      if (!cuenta) continue;
-
-      const diff = calcularDiferencia(cuenta.tipo, cuenta.saldoActual, item.saldoReal);
-      if (Math.abs(diff) < 0.01) continue;
-
-      diferenciaTotal += diff;
-
-      if (diff < 0) {
-        const monto = Math.abs(diff);
-        await tx
-          .update(accounts)
-          .set({ saldoActual: cuenta.saldoActual - monto })
-          .where(and(eq(accounts.id, cuenta.id), eq(accounts.userId, userId)))
-          .execute();
-
-        await tx
-          .insert(transactions)
-          .values({
-            userId,
-            descripcion: `Ajuste: ${cuenta.nombre}`,
-            monto,
-            tipo: "gasto",
-            accountId: cuenta.id,
-            categoryId: categoriaId,
-            fecha,
-            notas: `Ajuste semanal · Saldo sistema: $${cuenta.saldoActual.toLocaleString("es-MX")} · Saldo real: $${item.saldoReal.toLocaleString("es-MX")}`,
-          })
-          .execute();
-
-        transaccionesCreadas++;
-      } else if (diff > 0) {
-        const monto = diff;
-        const delta = cuenta.tipo === "credito" ? -1 : 1;
-
-        await tx
-          .update(accounts)
-          .set({ saldoActual: cuenta.saldoActual + monto * delta })
-          .where(and(eq(accounts.id, cuenta.id), eq(accounts.userId, userId)))
-          .execute();
-
-        await tx
-          .insert(transactions)
-          .values({
-            userId,
-            descripcion: `Ajuste: ${cuenta.nombre}`,
-            monto,
-            tipo: "ingreso",
-            accountId: cuenta.id,
-            categoryId: null,
-            fecha,
-            notas: `Ajuste semanal · Saldo sistema: $${cuenta.saldoActual.toLocaleString("es-MX")} · Saldo real: $${item.saldoReal.toLocaleString("es-MX")}`,
-          })
-          .execute();
-
-        transaccionesCreadas++;
+      const cuenta = cuentasMap.get(item.cuentaId)!;
+      const saldoReal = Math.round(item.saldoReal * 100) / 100;
+      const diff = calcularDiferenciaAjuste(cuenta.tipo, cuenta.saldoActual, saldoReal);
+      if (diff === 0) continue;
+      diferencias.push(diff);
+      const esGasto = diff < 0;
+      if (esGasto && categoriaId === null) {
+        categoriaId = await getOrCreateCategoriaAjuste(userId, tx);
       }
+
+      await tx
+        .update(accounts)
+        .set({ saldoActual: saldoReal })
+        .where(and(eq(accounts.id, cuenta.id), eq(accounts.userId, userId)))
+        .execute();
+
+      await tx
+        .insert(transactions)
+        .values({
+          userId,
+          descripcion: `Ajuste: ${cuenta.nombre}`,
+          monto: Math.abs(diff),
+          tipo: esGasto ? "gasto" : "ingreso",
+          accountId: cuenta.id,
+          categoryId: esGasto ? categoriaId : null,
+          fecha,
+          notas: `Ajuste semanal · Saldo sistema: $${cuenta.saldoActual.toLocaleString("es-MX")} · Saldo real: $${saldoReal.toLocaleString("es-MX")}`,
+        })
+        .execute();
     }
 
     await tx
@@ -202,6 +190,6 @@ export async function procesarAjuste(userId: string, input: AjusteInput) {
       })
       .execute();
 
-    return { transaccionesCreadas, diferenciaTotal };
+    return resumirAjuste(diferencias);
   });
 }

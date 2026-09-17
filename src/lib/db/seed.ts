@@ -54,6 +54,7 @@ const categoryDefs: Array<{
   { nombre: "Freelance", tipo: "ingreso" as const, icono: "Laptop", color: "#10B981", grupo: null },
   { nombre: "Otros Ingresos", tipo: "ingreso" as const, icono: "Gift", color: "#84CC16", grupo: null },
   { nombre: "Cobro de deudas", tipo: "ingreso" as const, icono: "HandCoins", color: "#A855F7", grupo: null },
+  { nombre: "Ajuste / Dinero no registrado", tipo: "gasto" as const, icono: "Wrench", color: "#F97316", grupo: null },
 ];
 
 const debtDefs = [

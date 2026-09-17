@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, Droplets, TrendingDown, TrendingUp, Plus, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ import { useRangeDates } from "@/stores/range";
 import { api, DATA_CHANGED_EVENT, isOnline } from "@/lib/api";
 import type { DashboardData } from "@/lib/types";
 import type { CreditCardNotification } from "@/lib/credit-card-notifications";
+import type { AjusteStatus } from "@/lib/ajuste";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { CreditCardNotificationToast } from "@/components/credit-card-notification-toast";
@@ -21,10 +23,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const range = useRangeDates();
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    async function checkAjuste() {
+      try {
+        const status = await api.get<AjusteStatus>("/api/ajuste/status");
+        if (status.necesitaAjuste) {
+          router.replace("/ajuste");
+        }
+      } catch {
+        // Silenciar errores — el usuario puede seguir usándolo
+      }
+    }
+    checkAjuste();
+  }, [router]);
 
   const cargar = useCallback(async () => {
     setLoading(true);

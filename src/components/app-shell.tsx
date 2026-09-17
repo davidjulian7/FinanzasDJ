@@ -17,6 +17,7 @@ import {
   CalendarClock,
   Coins,
   Settings,
+  Wrench,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/lib/api";
@@ -35,6 +36,7 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transacciones", label: "Transacciones", icon: ArrowLeftRight },
   { href: "/cuentas", label: "Cuentas", icon: CreditCard },
+  { href: "/ajuste", label: "Ajuste de cuentas", icon: Wrench },
   { href: "/presupuesto", label: "Presupuesto", icon: PiggyBank },
   { href: "/presupuesto/apartados", label: "Apartados", icon: Coins },
   { href: "/gastos-recurrentes", label: "Gastos recurrentes", icon: CalendarClock },
@@ -46,6 +48,7 @@ const TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/transacciones": "Transacciones",
   "/cuentas": "Cuentas",
+  "/ajuste": "Ajuste de cuentas",
   "/presupuesto": "Presupuesto",
   "/presupuesto/configuracion": "Configurar presupuesto",
   "/presupuesto/quincena": "Ejecución quincena",

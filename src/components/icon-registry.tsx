@@ -22,6 +22,7 @@ import {
   Tag,
   Phone,
   Dumbbell,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +48,7 @@ const ICONS: Record<string, LucideIcon> = {
   Tag,
   Phone,
   Dumbbell,
+  Wrench,
 };
 
 export const ICON_NAMES = Object.keys(ICONS);

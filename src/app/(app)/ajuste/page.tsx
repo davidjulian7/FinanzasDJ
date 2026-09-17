@@ -107,6 +107,10 @@ export default function AjustePage() {
   function getDiferenciaTotal(): number {
     let total = 0;
     for (const c of cuentas) {
+      const raw = saldos[c.cuentaId];
+      if (raw === "" || raw === undefined) continue;
+      const valor = parseFloat(raw);
+      if (!Number.isFinite(valor)) continue;
       const diff = getDiferencia(c);
       if (diff !== null) total += diff;
     }
@@ -116,25 +120,31 @@ export default function AjustePage() {
   function isFormValid(): boolean {
     for (const c of cuentas) {
       const raw = saldos[c.cuentaId];
-      if (raw === "" || raw === undefined) return false;
+      if (raw === "" || raw === undefined) continue;
       const valor = parseFloat(raw);
-      if (!Number.isFinite(valor)) return false;
+      if (Number.isFinite(valor)) return true;
     }
-    return true;
+    return false;
   }
 
   async function aplicarAjuste() {
     if (!isFormValid()) {
-      toast.error("Ingresa el saldo real de todas las cuentas");
+      toast.error("Ingresa el saldo real de al menos una cuenta");
       return;
     }
 
     setProcesando(true);
     try {
-      const cuentasPayload = cuentas.map((c) => ({
-        cuentaId: c.cuentaId,
-        saldoReal: parseFloat(saldos[c.cuentaId]),
-      }));
+      const cuentasPayload = cuentas
+        .filter((c) => {
+          const raw = saldos[c.cuentaId];
+          if (raw === "" || raw === undefined) return false;
+          return Number.isFinite(parseFloat(raw));
+        })
+        .map((c) => ({
+          cuentaId: c.cuentaId,
+          saldoReal: parseFloat(saldos[c.cuentaId]),
+        }));
 
       const result = await api.post<{ transaccionesCreadas: number; diferenciaTotal: number }>(
         "/api/ajuste",
@@ -198,7 +208,12 @@ export default function AjustePage() {
   }
 
   const diferenciaTotal = getDiferenciaTotal();
-  const todosLlenos = isFormValid();
+  const haySaldos = isFormValid();
+  const cuentasConSaldo = cuentas.filter((c) => {
+    const raw = saldos[c.cuentaId];
+    if (raw === "" || raw === undefined) return false;
+    return Number.isFinite(parseFloat(raw));
+  }).length;
 
   return (
     <div className="space-y-6">
@@ -220,7 +235,7 @@ export default function AjustePage() {
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
           <p className="text-xs text-muted-foreground">
-            Ingresa el saldo <strong>real</strong> que tienes en cada cuenta ahora mismo. El sistema calculará automáticamente las diferencias y creará las transacciones de ajuste correspondientes.
+            Ingresa el saldo <strong>real</strong> de las cuentas que quieras ajustar. Puedes hacer ajuste parcial — las cuentas sin saldo se omiten.
           </p>
         </div>
       </div>
@@ -289,7 +304,7 @@ export default function AjustePage() {
         })}
       </div>
 
-      {todosLlenos && (
+      {haySaldos && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -297,7 +312,7 @@ export default function AjustePage() {
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-semibold">Resumen del ajuste</span>
-            <span className="text-xs text-muted-foreground">{cuentas.length} cuentas revisadas</span>
+            <span className="text-xs text-muted-foreground">{cuentasConSaldo} de {cuentas.length} cuentas</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Diferencia total</span>
@@ -318,7 +333,7 @@ export default function AjustePage() {
       <div className="flex justify-end">
         <Button
           onClick={aplicarAjuste}
-          disabled={!todosLlenos || procesando}
+          disabled={!haySaldos || procesando}
           className="btn-gradient gap-2 px-6"
         >
           {procesando ? (

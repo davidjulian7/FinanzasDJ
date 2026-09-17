@@ -23,6 +23,7 @@ function ajusteDb(cuentas, { lastDate, failTransaction = false } = {}) {
       function query(operation, initialTable) {
         let table = initialTable;
         let values;
+        let conflict;
         let predicate = () => true;
         const builder = {
           from(value) { table = value; return builder; },
@@ -32,7 +33,7 @@ function ajusteDb(cuentas, { lastDate, failTransaction = false } = {}) {
           values(value) { values = value; return builder; },
           set(value) { values = value; return builder; },
           returning() { return builder; },
-          onConflictDoUpdate() { return builder; },
+          onConflictDoUpdate(value) { conflict = value; return builder; },
           async execute() {
             if (operation === "select") return draft[table.name].filter(predicate);
             if (operation === "update") {
@@ -40,6 +41,13 @@ function ajusteDb(cuentas, { lastDate, failTransaction = false } = {}) {
               return [];
             }
             if (table.name === "transactions" && failTransaction) throw new Error("fallo al registrar movimiento");
+            if (conflict) {
+              const existing = draft[table.name].find((row) => conflict.target.every((field) => row[field] === values[field]));
+              if (existing) {
+                Object.assign(existing, conflict.set);
+                return [existing];
+              }
+            }
             const row = { id: draft[table.name].length + 1, ...values };
             draft[table.name].push(row);
             return [row];
@@ -102,12 +110,27 @@ test("un fallo no deja saldos, categorías ni fecha del ajuste guardados a media
   assert.deepEqual(db.saved(), before);
 });
 
-test("un ajuste repetido produce un conflicto reconocible, no un error 500", async () => {
+test("permite corregir el saldo varias veces el mismo día aunque ya exista un ajuste reciente", async () => {
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const db = ajusteDb([{ id: 1, nombre: "BBVA", tipo: "debito", saldoActual: 1000 }], { lastDate: today });
-  await assert.rejects(db.procesarAjuste("user", { fecha: today, cuentas: [{ cuentaId: 1, saldoReal: 800 }] }), { status: 409 });
-  assert.equal(db.saved().accounts[0].saldoActual, 1000);
+  await db.procesarAjuste("user", { fecha: today, cuentas: [{ cuentaId: 1, saldoReal: 800 }] });
+  const result = await db.procesarAjuste("user", { fecha: today, cuentas: [{ cuentaId: 1, saldoReal: 750 }] });
+  assert.equal(db.saved().accounts[0].saldoActual, 750);
+  assert.deepEqual(db.saved().transactions.map((row) => row.monto), [200, 50]);
+  assert.deepEqual(result, { transaccionesCreadas: 1, diferenciaTotal: -50, totalGastos: 50, totalIngresos: 0 });
+  assert.equal(db.saved().settings.length, 1);
+  assert.equal(db.saved().settings[0].value, JSON.stringify(today));
+});
+
+test("reenviar inmediatamente el mismo saldo no duplica los movimientos", async () => {
+  const db = ajusteDb([{ id: 1, nombre: "TDC BBVA", tipo: "credito", saldoActual: 100 }]);
+  const input = { fecha: "2026-09-17", cuentas: [{ cuentaId: 1, saldoReal: 400 }] };
+  await db.procesarAjuste("user", input);
+  const result = await db.procesarAjuste("user", input);
+  assert.equal(db.saved().accounts[0].saldoActual, 400);
+  assert.equal(db.saved().transactions.length, 1);
+  assert.deepEqual(result, { transaccionesCreadas: 0, diferenciaTotal: 0, totalGastos: 0, totalIngresos: 0 });
 });
 
 test("rechaza cuentas duplicadas y saldos inválidos antes de guardar", async () => {

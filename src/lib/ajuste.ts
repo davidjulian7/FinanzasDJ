@@ -4,7 +4,8 @@ import { accounts, expenseCategories, settings, transactions } from "./db/schema
 import { isoDate } from "./format";
 import { calcularDiferenciaAjuste, resumirAjuste, type ResultadoAjuste } from "./ajuste-calculos";
 
-const DIAS_PARA_AJUSTE = 7;
+// Este plazo solo activa el recordatorio; se pueden guardar ajustes en cualquier momento.
+const DIAS_RECORDATORIO_AJUSTE = 7;
 const KEY_ULTIMO_AJUSTE = "ultimo_ajuste_fecha";
 const CATEGORIA_NOMBRE = "Ajuste / Dinero no registrado";
 type AjusteDb = Pick<typeof db, "select" | "insert">;
@@ -56,7 +57,7 @@ export async function getAjusteStatus(userId: string, queryDb: AjusteDb = db): P
   const dias = Math.floor(diffMs / 86400000);
 
   return {
-    necesitaAjuste: dias >= DIAS_PARA_AJUSTE,
+    necesitaAjuste: dias >= DIAS_RECORDATORIO_AJUSTE,
     diasSinAjuste: dias,
     fechaUltimoAjuste: fechaStr,
   };
@@ -142,11 +143,6 @@ export async function procesarAjuste(userId: string, input: AjusteInput): Promis
       throw new AjusteError("Una de las cuentas ya no está disponible. Recarga el ajuste.");
     }
 
-    const status = await getAjusteStatus(userId, tx);
-    if (!status.necesitaAjuste && status.fechaUltimoAjuste) {
-      throw new AjusteError("Ya se realizó un ajuste en los últimos 7 días. Revisa los saldos en el dashboard.", 409);
-    }
-
     const diferencias: number[] = [];
     let categoriaId: number | null = null;
     for (const item of input.cuentas) {
@@ -176,7 +172,7 @@ export async function procesarAjuste(userId: string, input: AjusteInput): Promis
           accountId: cuenta.id,
           categoryId: esGasto ? categoriaId : null,
           fecha,
-          notas: `Ajuste semanal · Saldo sistema: $${cuenta.saldoActual.toLocaleString("es-MX")} · Saldo real: $${saldoReal.toLocaleString("es-MX")}`,
+          notas: `Ajuste de cuentas · Saldo sistema: $${cuenta.saldoActual.toLocaleString("es-MX")} · Saldo real: $${saldoReal.toLocaleString("es-MX")}`,
         })
         .execute();
     }

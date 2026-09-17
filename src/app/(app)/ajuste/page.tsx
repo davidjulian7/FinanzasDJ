@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, ArrowRight, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { api, DATA_CHANGED_EVENT } from "@/lib/api";
 import { formatCurrency, todayISO } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { IconByName } from "@/components/icon-registry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,17 @@ const TIPO_ORDEN: Record<string, number> = {
   inversion: 2,
 };
 
+function nombreBaseCuenta(nombre: string): string {
+  return nombre
+    .trim()
+    .replace(/^tdc[\s-]+/i, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es-MX")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function AjustePage() {
   const router = useRouter();
   const [status, setStatus] = useState<AjusteStatus | null>(null);
@@ -39,28 +51,14 @@ export default function AjustePage() {
   const [resultado, setResultado] = useState<{ transaccionesCreadas: number; diferenciaTotal: number } | null>(null);
 
   const cuentasOrdenadas = useMemo(() => {
-    const sorted = [...cuentas].sort((a, b) => {
-      const oa = TIPO_ORDEN[a.tipo] ?? 2;
-      const ob = TIPO_ORDEN[b.tipo] ?? 2;
-      if (oa !== ob) return oa - ob;
-      return 0;
+    return [...cuentas].sort((a, b) => {
+      const porNombre = nombreBaseCuenta(a.nombre).localeCompare(
+        nombreBaseCuenta(b.nombre),
+        "es-MX"
+      );
+      if (porNombre !== 0) return porNombre;
+      return (TIPO_ORDEN[a.tipo] ?? 2) - (TIPO_ORDEN[b.tipo] ?? 2);
     });
-
-    const resultado: CuentaAjuste[] = [];
-    const debitos = sorted.filter((c) => c.tipo === "debito");
-    const creditos = sorted.filter((c) => c.tipo === "credito");
-    const invertidos = sorted.filter((c) => c.tipo === "inversion");
-    const efectivos = sorted.filter((c) => c.tipo === "efectivo");
-
-    const maxLen = Math.max(debitos.length, creditos.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (debitos[i]) resultado.push(debitos[i]);
-      if (creditos[i]) resultado.push(creditos[i]);
-    }
-    for (const inv of invertidos) resultado.push(inv);
-    for (const ef of efectivos) resultado.push(ef);
-
-    return resultado;
   }, [cuentas]);
 
   const cargar = useCallback(async () => {
@@ -241,15 +239,20 @@ export default function AjustePage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {cuentasOrdenadas.map((cuenta) => {
+        {cuentasOrdenadas.map((cuenta, index) => {
           const diff = getDiferencia(cuenta);
           const esCredito = cuenta.tipo === "credito";
+          const iniciaGrupo = index === 0 ||
+            nombreBaseCuenta(cuenta.nombre) !== nombreBaseCuenta(cuentasOrdenadas[index - 1].nombre);
           return (
             <motion.div
               key={cuenta.cuentaId}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass glow-hover relative overflow-hidden rounded-2xl border border-border p-5"
+              className={cn(
+                "glass glow-hover relative overflow-hidden rounded-2xl border border-border p-5",
+                iniciaGrupo && "sm:col-start-1"
+              )}
             >
               <div
                 className="absolute inset-x-0 top-0 h-1"

@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "./db";
-import { accounts, apartadoContribuciones, apartados, budgetGroups, expenseCategories, transactions } from "./db/schema";
+import { accounts, apartadoContribuciones, apartados, budgetGroups, debts, expenseCategories, transactions } from "./db/schema";
 import { daysBetween, quincenaDelDia, quincenaRango, type DateRange } from "./ranges";
 import { getIngresoQuincena, getReglaPct } from "./settings";
 
@@ -9,10 +9,11 @@ const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "O
 type Grupo = "necesidades" | "deseos" | "ahorro";
 
 export async function getDashboard(userId: string, range: DateRange) {
-  const [cuentas, cats, groups] = await Promise.all([
+  const [cuentas, cats, groups, deudasRows] = await Promise.all([
     db.select().from(accounts).where(eq(accounts.userId, userId)).execute(),
     db.select().from(expenseCategories).where(eq(expenseCategories.userId, userId)).execute(),
     db.select().from(budgetGroups).execute(),
+    db.select().from(debts).where(eq(debts.userId, userId)).execute(),
   ]);
   const catById = new Map(cats.map((c) => [c.id, c]));
   const cuentaById = new Map(cuentas.map((c) => [c.id, c]));
@@ -30,11 +31,17 @@ export async function getDashboard(userId: string, range: DateRange) {
     .where(and(eq(transactions.userId, userId), gte(transactions.fecha, range.from), lte(transactions.fecha, range.to)))
     .execute();
 
-  const patrimonio = cuentas.reduce((sum, c) => sum + (c.tipo === "credito" ? -c.saldoActual : c.saldoActual), 0);
+  const deudasTarjetas = cuentas.filter((c) => c.tipo === "credito").reduce((sum, c) => sum + Math.max(0, c.saldoActual), 0);
+  const deudasPersonales = deudasRows.filter((d) => d.tipo === "por_pagar").reduce((sum, d) => sum + d.saldoPendiente, 0);
+  const porCobrar = deudasRows.filter((d) => d.tipo === "por_cobrar").reduce((sum, d) => sum + d.saldoPendiente, 0);
+  const patrimonio =
+    cuentas.reduce((sum, c) => sum + (c.tipo === "credito" ? -c.saldoActual : c.saldoActual), 0) -
+    deudasPersonales +
+    porCobrar;
   const liquidez = cuentas
     .filter((c) => c.tipo === "debito" || c.tipo === "efectivo")
     .reduce((sum, c) => sum + c.saldoActual, 0);
-  const deudas = cuentas.filter((c) => c.tipo === "credito").reduce((sum, c) => sum + Math.max(0, c.saldoActual), 0);
+  const deudas = deudasTarjetas + deudasPersonales;
   const inversiones = cuentas.filter((c) => c.tipo === "inversion").reduce((sum, c) => sum + c.saldoActual, 0);
 
   let ingresos = 0;
@@ -198,6 +205,9 @@ export async function getDashboard(userId: string, range: DateRange) {
       patrimonio: Math.round(patrimonio),
       liquidez: Math.round(liquidez),
       deudas: Math.round(deudas),
+      deudasTarjetas: Math.round(deudasTarjetas),
+      deudasPersonales: Math.round(deudasPersonales),
+      porCobrar: Math.round(porCobrar),
       inversiones: Math.round(inversiones),
     },
     totales: { ingresos: Math.round(ingresos), gastos: Math.round(gastos) },

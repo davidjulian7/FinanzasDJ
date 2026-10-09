@@ -156,35 +156,11 @@ export default function DebtsPage() {
         onDone={() => setRefresh((r) => r + 1)}
       />
 
-      <Dialog open={!!eliminando} onOpenChange={(v) => !v && setEliminando(null)}>
-        <DialogContent className="glass sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Eliminar deuda</DialogTitle>
-            <DialogDescription>¿Seguro que quieres eliminar “{eliminando?.nombre}”?</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setEliminando(null)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                if (!eliminando) return;
-                try {
-                  await api.delete(`/api/debts/${eliminando.id}`);
-                  toast.success("Deuda eliminada");
-                  setEliminando(null);
-                  setRefresh((r) => r + 1);
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "No se pudo eliminar");
-                }
-              }}
-            >
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteDebtDialog
+        debt={eliminando}
+        onClose={() => setEliminando(null)}
+        onDone={() => setRefresh((r) => r + 1)}
+      />
     </div>
   );
 }
@@ -463,6 +439,156 @@ function PaymentDialog({ debt, onClose, onDone }: { debt: DebtRow | null; onClos
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteDebtDialog({
+  debt,
+  onClose,
+  onDone,
+}: {
+  debt: DebtRow | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { accounts } = useReference();
+  const [paso, setPaso] = useState<"inicio" | "cuenta">("inicio");
+  const [cuentaId, setCuentaId] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!debt) return;
+    setPaso("inicio");
+    setCuentaId("");
+  }, [debt]);
+
+  const esDeuda = debt?.tipo === "por_pagar";
+
+  async function perdonar() {
+    if (!debt) return;
+    setLoading(true);
+    try {
+      await api.delete(`/api/debts/${debt.id}`);
+      toast.success("Deuda perdonada y eliminada");
+      onClose();
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo eliminar");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function liquidarPago(e: React.FormEvent) {
+    e.preventDefault();
+    if (!debt) return;
+    if (!cuentaId) return toast.error("Selecciona la cuenta desde la que se pagó");
+    setLoading(true);
+    try {
+      await api.post(`/api/debts/${debt.id}/pago`, {
+        monto: debt.saldoPendiente,
+        cuentaId: Number(cuentaId),
+      });
+      toast.success(esDeuda ? "Deuda pagada y liquidada" : "Cobro registrado y deuda liquidada");
+      onClose();
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo liquidar la deuda");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={!!debt}
+      onOpenChange={(v) => {
+        if (v) return;
+        if (!loading) onClose();
+      }}
+    >
+      <DialogContent className="glass sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Eliminar deuda</DialogTitle>
+          <DialogDescription>
+            {paso === "inicio"
+              ? `¿Qué ocurrió con “${debt?.nombre}”?`
+              : `¿Desde qué cuenta se ${esDeuda ? "hizo el pago" : "recibió el cobro"}?`}
+            {debt ? (
+              <>
+                {" "}
+                · pendiente <span className="font-mono">{formatCurrency(debt.saldoPendiente)}</span>
+              </>
+            ) : null}
+          </DialogDescription>
+        </DialogHeader>
+
+        {paso === "inicio" ? (
+          <div className="space-y-2 py-1">
+            <button
+              type="button"
+              className="glass w-full rounded-xl border border-border p-4 text-left transition-colors hover:border-destructive/50 disabled:opacity-50"
+              disabled={loading}
+              onClick={perdonar}
+            >
+              <p className="font-semibold">Se perdonó la deuda</p>
+              <p className="text-xs text-muted-foreground">Ya no se debe ese dinero, se elimina sin registrar movimiento.</p>
+            </button>
+            <button
+              type="button"
+              className="glass w-full rounded-xl border border-border p-4 text-left transition-colors hover:border-positive/50 disabled:opacity-50"
+              disabled={loading}
+              onClick={() => setPaso("cuenta")}
+            >
+              <p className="font-semibold">{esDeuda ? "Ya se pagó" : "Ya se cobró"}</p>
+              <p className="text-xs text-muted-foreground">
+                {esDeuda
+                  ? "Se registra el pago completo desde una cuenta y se liquida la deuda."
+                  : "Se registra el cobro completo en una cuenta y se liquida la deuda."}
+              </p>
+            </button>
+          </div>
+        ) : (
+          <form id="liquidar-deuda" onSubmit={liquidarPago} className="space-y-3 py-1">
+            <div className="space-y-2">
+              <Label>Cuenta {esDeuda ? "desde la que se pagó" : "donde se recibió"}</Label>
+              <Select value={cuentaId} onValueChange={setCuentaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una cuenta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Se registrará un movimiento de {esDeuda ? "gasto" : "ingreso"} por{" "}
+                <span className="font-mono">{debt ? formatCurrency(debt.saldoPendiente) : ""}</span> y se eliminará la deuda.
+              </p>
+            </div>
+          </form>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            Cancelar
+          </Button>
+          {paso === "cuenta" ? (
+            <>
+              <Button variant="outline" onClick={() => setPaso("inicio")} disabled={loading}>
+                Atrás
+              </Button>
+              <Button type="submit" form="liquidar-deuda" className="btn-gradient" disabled={loading || !cuentaId}>
+                {loading ? "Liquidando…" : "Liquidar deuda"}
+              </Button>
+            </>
+          ) : null}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

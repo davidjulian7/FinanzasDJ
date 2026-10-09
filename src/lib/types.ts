@@ -69,7 +69,15 @@ export interface RecurringExpenseRow {
 }
 
 export interface DashboardData {
-  summary: { patrimonio: number; liquidez: number; deudas: number; inversiones: number };
+  summary: {
+    patrimonio: number;
+    liquidez: number;
+    deudas: number;
+    deudasTarjetas: number;
+    deudasPersonales: number;
+    porCobrar: number;
+    inversiones: number;
+  };
   totales: { ingresos: number; gastos: number };
   donut: Array<{ categoria: string; monto: number; color: string; icono: string }>;
   gastosPorCuenta: Array<{ cuenta: string; monto: number; color: string }>;

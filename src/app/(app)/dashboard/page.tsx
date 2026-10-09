@@ -144,9 +144,21 @@ export default function DashboardPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <SummaryCard label="Patrimonio neto" value={formatCurrency(data.summary.patrimonio)} icon={Wallet} color="#2D3748" />
+                <SummaryCard
+                  label="Patrimonio neto"
+                  value={formatCurrency(data.summary.patrimonio)}
+                  icon={Wallet}
+                  color="#2D3748"
+                  hint={data.summary.porCobrar > 0 ? `Incluye ${formatCurrency(data.summary.porCobrar)} por cobrar` : undefined}
+                />
                 <SummaryCard label="Liquidez" value={formatCurrency(data.summary.liquidez)} icon={Droplets} color="#4A5568" hint="Débito + efectivo" />
-                <SummaryCard label="Deudas de tarjetas" value={formatCurrency(data.summary.deudas)} icon={TrendingDown} color="#B86A62" />
+                <SummaryCard
+                  label="Deudas"
+                  value={formatCurrency(data.summary.deudas)}
+                  icon={TrendingDown}
+                  color="#B86A62"
+                  hint={`Tarjetas ${formatCurrency(data.summary.deudasTarjetas)} · Personales ${formatCurrency(data.summary.deudasPersonales)}`}
+                />
                 <SummaryCard label="Inversiones" value={formatCurrency(data.summary.inversiones)} icon={TrendingUp} color="#5A8F6D" />
               </div>
 

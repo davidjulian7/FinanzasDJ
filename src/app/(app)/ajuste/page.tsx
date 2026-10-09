@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, ArrowRight, Wrench } from "lucide-react";
 import { toast } from "sonner";
-import { api, DATA_CHANGED_EVENT } from "@/lib/api";
+import { api } from "@/lib/api";
+import { calcularDiferenciaAjuste, resumirAjuste, type ResultadoAjuste } from "@/lib/ajuste-calculos";
 import { formatCurrency, todayISO } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { IconByName } from "@/components/icon-registry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,19 +16,23 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CuentaAjuste, AjusteStatus } from "@/lib/ajuste";
 
-const TIPO_LABEL: Record<string, string> = {
-  debito: "Débito",
-  credito: "Crédito",
-  efectivo: "Efectivo",
-  inversion: "Inversión",
-};
-
 const TIPO_ORDEN: Record<string, number> = {
   debito: 0,
   credito: 1,
   efectivo: 3,
   inversion: 2,
 };
+
+function nombreBaseCuenta(nombre: string): string {
+  return nombre
+    .trim()
+    .replace(/^tdc[\s-]+/i, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es-MX")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export default function AjustePage() {
   const router = useRouter();
@@ -36,31 +42,17 @@ export default function AjustePage() {
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
   const [completado, setCompletado] = useState(false);
-  const [resultado, setResultado] = useState<{ transaccionesCreadas: number; diferenciaTotal: number } | null>(null);
+  const [resultado, setResultado] = useState<ResultadoAjuste | null>(null);
 
   const cuentasOrdenadas = useMemo(() => {
-    const sorted = [...cuentas].sort((a, b) => {
-      const oa = TIPO_ORDEN[a.tipo] ?? 2;
-      const ob = TIPO_ORDEN[b.tipo] ?? 2;
-      if (oa !== ob) return oa - ob;
-      return 0;
+    return [...cuentas].sort((a, b) => {
+      const porNombre = nombreBaseCuenta(a.nombre).localeCompare(
+        nombreBaseCuenta(b.nombre),
+        "es-MX"
+      );
+      if (porNombre !== 0) return porNombre;
+      return (TIPO_ORDEN[a.tipo] ?? 2) - (TIPO_ORDEN[b.tipo] ?? 2);
     });
-
-    const resultado: CuentaAjuste[] = [];
-    const debitos = sorted.filter((c) => c.tipo === "debito");
-    const creditos = sorted.filter((c) => c.tipo === "credito");
-    const invertidos = sorted.filter((c) => c.tipo === "inversion");
-    const efectivos = sorted.filter((c) => c.tipo === "efectivo");
-
-    const maxLen = Math.max(debitos.length, creditos.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (debitos[i]) resultado.push(debitos[i]);
-      if (creditos[i]) resultado.push(creditos[i]);
-    }
-    for (const inv of invertidos) resultado.push(inv);
-    for (const ef of efectivos) resultado.push(ef);
-
-    return resultado;
   }, [cuentas]);
 
   const cargar = useCallback(async () => {
@@ -98,53 +90,50 @@ export default function AjustePage() {
     if (raw === "" || raw === undefined || raw === null) return null;
     const valor = parseFloat(raw);
     if (!Number.isFinite(valor)) return null;
-    if (cuenta.tipo === "credito") {
-      return cuenta.saldoActual - valor;
-    }
-    return valor - cuenta.saldoActual;
-  }
-
-  function getDiferenciaTotal(): number {
-    let total = 0;
-    for (const c of cuentas) {
-      const diff = getDiferencia(c);
-      if (diff !== null) total += diff;
-    }
-    return total;
+    return calcularDiferenciaAjuste(cuenta.tipo, cuenta.saldoActual, valor);
   }
 
   function isFormValid(): boolean {
     for (const c of cuentas) {
       const raw = saldos[c.cuentaId];
-      if (raw === "" || raw === undefined) return false;
+      if (raw === "" || raw === undefined) continue;
       const valor = parseFloat(raw);
-      if (!Number.isFinite(valor)) return false;
+      if (Number.isFinite(valor)) return true;
     }
-    return true;
+    return false;
   }
 
   async function aplicarAjuste() {
     if (!isFormValid()) {
-      toast.error("Ingresa el saldo real de todas las cuentas");
+      toast.error("Ingresa el saldo real de al menos una cuenta");
       return;
     }
 
     setProcesando(true);
     try {
-      const cuentasPayload = cuentas.map((c) => ({
-        cuentaId: c.cuentaId,
-        saldoReal: parseFloat(saldos[c.cuentaId]),
-      }));
+      const cuentasPayload = cuentas
+        .filter((c) => {
+          const raw = saldos[c.cuentaId];
+          if (raw === "" || raw === undefined) return false;
+          return Number.isFinite(parseFloat(raw));
+        })
+        .map((c) => ({
+          cuentaId: c.cuentaId,
+          saldoReal: parseFloat(saldos[c.cuentaId]),
+        }));
 
-      const result = await api.post<{ transaccionesCreadas: number; diferenciaTotal: number }>(
+      const result = await api.post<ResultadoAjuste>(
         "/api/ajuste",
-        { fecha: todayISO(), cuentas: cuentasPayload }
+        { fecha: todayISO(), cuentas: cuentasPayload },
+        { requireOnline: true }
       );
+
+      if (![result?.transaccionesCreadas, result?.diferenciaTotal, result?.totalGastos, result?.totalIngresos].every(Number.isFinite)) {
+        throw new Error("No se pudo confirmar el resultado del ajuste. Revisa los saldos antes de volver a intentarlo.");
+      }
 
       setResultado(result);
       setCompletado(true);
-
-      window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
 
       toast.success(`Ajuste aplicado. ${result.transaccionesCreadas} transacciones creadas.`);
     } catch (e: unknown) {
@@ -181,14 +170,25 @@ export default function AjustePage() {
         >
           <CheckCircle2 className="mx-auto mb-4 size-16 text-positive" />
           <h2 className="mb-2 text-xl font-bold">Ajuste completado</h2>
-          <p className="mb-6 text-sm text-muted-foreground">
-            Se crearon <strong>{resultado.transaccionesCreadas}</strong> transacciones de ajuste
-            {resultado.diferenciaTotal !== 0 && (
-              <> por un total de <strong className={resultado.diferenciaTotal < 0 ? "text-destructive" : "text-positive"}>
-                {formatCurrency(Math.abs(resultado.diferenciaTotal))}
-              </strong></>
-            )}
+          <p className="mb-4 text-sm text-muted-foreground">
+            {resultado.transaccionesCreadas === 0
+              ? "Los saldos ya coincidían. No se crearon transacciones."
+              : <>Se crearon <strong>{resultado.transaccionesCreadas}</strong> transacciones de ajuste.</>}
           </p>
+          <dl className="mb-6 flex flex-col gap-2 text-sm">
+            <div className="flex justify-between gap-6">
+              <dt>Gastos no registrados</dt>
+              <dd className="font-mono text-destructive">{formatCurrency(resultado.totalGastos)}</dd>
+            </div>
+            <div className="flex justify-between gap-6">
+              <dt>Ingresos no registrados</dt>
+              <dd className="font-mono text-positive">{formatCurrency(resultado.totalIngresos)}</dd>
+            </div>
+            <div className="flex justify-between gap-6">
+              <dt>Diferencia neta</dt>
+              <dd className="font-mono">{formatCurrency(resultado.diferenciaTotal)}</dd>
+            </div>
+          </dl>
           <Button onClick={() => router.push("/dashboard")} className="gap-2">
             Ir al dashboard <ArrowRight className="size-4" />
           </Button>
@@ -197,8 +197,14 @@ export default function AjustePage() {
     );
   }
 
-  const diferenciaTotal = getDiferenciaTotal();
-  const todosLlenos = isFormValid();
+  const resumen = resumirAjuste(cuentas.map((cuenta) => getDiferencia(cuenta) ?? 0));
+  const diferenciaTotal = resumen.diferenciaTotal;
+  const haySaldos = isFormValid();
+  const cuentasConSaldo = cuentas.filter((c) => {
+    const raw = saldos[c.cuentaId];
+    if (raw === "" || raw === undefined) return false;
+    return Number.isFinite(parseFloat(raw));
+  }).length;
 
   return (
     <div className="space-y-6">
@@ -220,21 +226,26 @@ export default function AjustePage() {
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
           <p className="text-xs text-muted-foreground">
-            Ingresa el saldo <strong>real</strong> que tienes en cada cuenta ahora mismo. El sistema calculará automáticamente las diferencias y creará las transacciones de ajuste correspondientes.
+            Ingresa el saldo <strong>real</strong> de las cuentas que quieras ajustar. Puedes hacer ajuste parcial — las cuentas sin saldo se omiten.
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {cuentasOrdenadas.map((cuenta) => {
+        {cuentasOrdenadas.map((cuenta, index) => {
           const diff = getDiferencia(cuenta);
           const esCredito = cuenta.tipo === "credito";
+          const iniciaGrupo = index === 0 ||
+            nombreBaseCuenta(cuenta.nombre) !== nombreBaseCuenta(cuentasOrdenadas[index - 1].nombre);
           return (
             <motion.div
               key={cuenta.cuentaId}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass glow-hover relative overflow-hidden rounded-2xl border border-border p-5"
+              className={cn(
+                "glass glow-hover relative overflow-hidden rounded-2xl border border-border p-5",
+                iniciaGrupo && "sm:col-start-1"
+              )}
             >
               <div
                 className="absolute inset-x-0 top-0 h-1"
@@ -289,7 +300,7 @@ export default function AjustePage() {
         })}
       </div>
 
-      {todosLlenos && (
+      {haySaldos && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -297,7 +308,7 @@ export default function AjustePage() {
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-semibold">Resumen del ajuste</span>
-            <span className="text-xs text-muted-foreground">{cuentas.length} cuentas revisadas</span>
+            <span className="text-xs text-muted-foreground">{cuentasConSaldo} de {cuentas.length} cuentas</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Diferencia total</span>
@@ -306,11 +317,9 @@ export default function AjustePage() {
             </span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            {diferenciaTotal < 0
-              ? "Se crearán transacciones de gasto por el dinero no registrado"
-              : diferenciaTotal > 0
-                ? "Se crearán transacciones de ingreso por el dinero extra encontrado"
-                : "Las cuentas están cuadradas — no se crearán transacciones"}
+            {resumen.transaccionesCreadas === 0
+              ? "Las cuentas están cuadradas — no se crearán transacciones"
+              : `Se registrarán ${formatCurrency(resumen.totalGastos)} de gastos y ${formatCurrency(resumen.totalIngresos)} de ingresos.`}
           </p>
         </motion.div>
       )}
@@ -318,7 +327,7 @@ export default function AjustePage() {
       <div className="flex justify-end">
         <Button
           onClick={aplicarAjuste}
-          disabled={!todosLlenos || procesando}
+          disabled={!haySaldos || procesando}
           className="btn-gradient gap-2 px-6"
         >
           {procesando ? (

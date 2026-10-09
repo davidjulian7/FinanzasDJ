@@ -1,5 +1,6 @@
 import * as idb from "./db-client";
 import * as sync from "./sync-queue";
+import { notifyDataChanged } from "./data-changes";
 
 export class ApiError extends Error {
   status: number;
@@ -9,13 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-export const DATA_CHANGED_EVENT = "finanzas:data-changed";
-
-function notifyDataChanged(): void {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
-  }
-}
+export { DATA_CHANGED_EVENT } from "./data-changes";
 
 const isOnline = () => typeof navigator !== "undefined" && navigator.onLine;
 
@@ -43,21 +38,6 @@ function matchStore(url: string): StoreName | null {
     if (path === prefix || path.startsWith(prefix + "/")) return store;
   }
   return null;
-}
-
-function invalidateOnMutation(url: string): void {
-  const path = url.split("?")[0];
-  const related: StoreName[] = [];
-
-  if (path.includes("/transactions")) related.push("transactions", "dashboard", "descriptions");
-  else if (path.includes("/accounts")) related.push("accounts", "dashboard");
-  else if (path.includes("/apartados")) related.push("apartados", "apartado_contribuciones", "dashboard");
-  else if (path.includes("/debts")) related.push("debts", "dashboard");
-  else if (path.includes("/cuotas")) related.push("cuotas", "dashboard");
-  else if (path.includes("/budget")) related.push("settings", "dashboard");
-  else related.push("dashboard");
-
-  for (const store of related) idb.clearStore(store).catch(() => {});
 }
 
 async function rawRequest<T>(method: string, url: string, body?: unknown, cache?: RequestCache): Promise<T> {
@@ -94,7 +74,7 @@ async function cacheResponse<T>(store: StoreName, data: T): Promise<void> {
   } catch { /* noop */ }
 }
 
-async function request<T>(method: string, url: string, body?: unknown, cache?: RequestCache): Promise<T> {
+async function request<T>(method: string, url: string, body?: unknown, cache?: RequestCache, requireOnline = false): Promise<T> {
   const store = matchStore(url);
 
   if (method === "GET") {
@@ -120,27 +100,22 @@ async function request<T>(method: string, url: string, body?: unknown, cache?: R
   }
 
   if (!isOnline()) {
+    if (requireOnline) {
+      throw new ApiError(0, "Necesitas conexión para aplicar el ajuste. Tus saldos aún no se han guardado.");
+    }
     await sync.enqueue({ method, url, body });
     return { ok: true, offline: true } as unknown as T;
   }
 
-  try {
-    const data = await rawRequest<T>(method, url, body);
-    invalidateOnMutation(url);
-    notifyDataChanged();
-    return data;
-  } catch (e) {
-    if (e instanceof ApiError && e.status >= 500) {
-      await sync.enqueue({ method, url, body });
-      return { ok: true, offline: true } as unknown as T;
-    }
-    throw e;
-  }
+  const data = await rawRequest<T>(method, url, body);
+  await notifyDataChanged(url);
+  return data;
 }
 
 export const api = {
   get: <T>(url: string, opts?: { cache?: RequestCache }) => request<T>("GET", url, undefined, opts?.cache),
-  post: <T>(url: string, body?: unknown) => request<T>("POST", url, body),
+  post: <T>(url: string, body?: unknown, opts?: { requireOnline?: boolean }) =>
+    request<T>("POST", url, body, undefined, opts?.requireOnline),
   put: <T>(url: string, body?: unknown) => request<T>("PUT", url, body),
   patch: <T>(url: string, body?: unknown) => request<T>("PATCH", url, body),
   delete: <T>(url: string) => request<T>("DELETE", url),

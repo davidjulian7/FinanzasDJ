@@ -1,13 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WifiOff, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { onSyncChange, processQueue } from "@/lib/sync-queue";
 
 export function OfflineIndicator() {
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
+  const [syncing, setSyncing] = useState(false);
   const syncingRef = useRef(false);
+  const hasPending = pending > 0;
+
+  const syncNow = useCallback(async () => {
+    if (syncingRef.current || !navigator.onLine) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      const result = await processQueue();
+      if (result.errors.length > 0) {
+        toast.error("No se pudieron aplicar algunos cambios pendientes", {
+          description: [...new Set(result.errors)].join(" "),
+          duration: 15000,
+        });
+      }
+    } catch {
+      toast.error("No se pudo sincronizar. Se volverá a intentar automáticamente.", { id: "sync-error" });
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -26,12 +49,16 @@ export function OfflineIndicator() {
   }, []);
 
   useEffect(() => {
-    if (!online || pending === 0 || syncingRef.current) return;
-    syncingRef.current = true;
-    processQueue().finally(() => {
-      syncingRef.current = false;
-    });
-  }, [online, pending]);
+    if (!online || !hasPending) return;
+    void syncNow();
+    const interval = window.setInterval(() => void syncNow(), 30000);
+    const onFocus = () => void syncNow();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [online, hasPending, syncNow]);
 
   if (online && pending === 0) return null;
 
@@ -48,7 +75,7 @@ export function OfflineIndicator() {
               </span>
             )}
           </>
-        ) : syncingRef.current ? (
+        ) : syncing ? (
           <>
             <RefreshCw className="size-3.5 animate-spin text-primary" />
             <span className="text-muted-foreground">Sincronizando…</span>

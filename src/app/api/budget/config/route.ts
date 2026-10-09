@@ -6,6 +6,7 @@ import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
 import { getReglaPct, getIngresoQuincena, ingresoKey, type ReglaPct } from "@/lib/settings";
 import { montoQuincena } from "@/lib/recurrentes";
+import { periodoQuincenaValido } from "@/lib/ranges";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,8 @@ export async function GET(req: NextRequest) {
     const anio = Number(searchParams.get("anio"));
     const quincena = Number(searchParams.get("quincena") ?? 1);
 
-    if (!mes || !anio) {
-      return apiError("Parámetros mes y año requeridos");
+    if (!periodoQuincenaValido(anio, mes, quincena)) {
+      return apiError("El año, mes o quincena no son válidos");
     }
 
     const [groups, expCats, recurrents] = await Promise.all([
@@ -81,10 +82,13 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user) return unauthorized();
     const body = await req.json();
-    const { mes, anio, quincena, ingresosQuincena, regla } = body;
+    const { ingresosQuincena, regla } = body;
+    const mes = Number(body.mes);
+    const anio = Number(body.anio);
+    const quincena = Number(body.quincena);
 
-    if (!mes || !anio) {
-      return apiError("Parámetros mes y año requeridos");
+    if (!periodoQuincenaValido(anio, mes, quincena)) {
+      return apiError("El año, mes o quincena no son válidos");
     }
 
     const ingresoNum = Number(ingresosQuincena ?? 0);

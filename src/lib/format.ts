@@ -44,3 +44,8 @@ export function monthKey(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   return `${d.getFullYear()}-${m}`;
 }
+
+export function parseMonthKey(value: string): { anio: number; mes: number } {
+  const [anio, mes] = value.split("-").map(Number);
+  return { anio, mes };
+}

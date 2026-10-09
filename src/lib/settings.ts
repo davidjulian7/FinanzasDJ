@@ -1,7 +1,7 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, or } from "drizzle-orm";
 import { db } from "./db";
 import { settings, transactions } from "./db/schema";
-import { quincenaRango } from "./ranges";
+import { periodoQuincenaValido, quincenaRango } from "./ranges";
 
 export async function getSetting<T>(userId: string, key: string, fallback: T): Promise<T> {
   const row = await db
@@ -49,6 +49,7 @@ function periodoIndex(anio: number, mes: number, quincena: number): number {
 }
 
 const KEY_INGRESO = /^ingreso_quincena_(\d{4})_(\d{1,2})_(\d{1,2})$/;
+const KEY_INGRESO_LEGACY = /^ingreso_quincena_(\d{1,2})_(\d{4})_(\d{1,2})$/;
 
 // Última quincena anterior (cronológicamente) que tenga un ingreso guardado > 0.
 export async function getUltimoIngresoQuincena(userId: string, anio: number, mes: number, quincena: number): Promise<number> {
@@ -59,11 +60,16 @@ export async function getUltimoIngresoQuincena(userId: string, anio: number, mes
     .where(eq(settings.userId, userId))
     .execute();
 
-  let best: { index: number; value: number } | null = null;
+  const porPeriodo = new Map<number, number>();
   for (const r of rows) {
-    const m = KEY_INGRESO.exec(r.key);
+    const normal = KEY_INGRESO.exec(r.key);
+    const m = normal ?? KEY_INGRESO_LEGACY.exec(r.key);
     if (!m) continue;
-    const idx = periodoIndex(Number(m[1]), Number(m[2]), Number(m[3]));
+    const anioGuardado = Number(m[normal ? 1 : 2]);
+    const mesGuardado = Number(m[normal ? 2 : 1]);
+    const quincenaGuardada = Number(m[3]);
+    if (!periodoQuincenaValido(anioGuardado, mesGuardado, quincenaGuardada)) continue;
+    const idx = periodoIndex(anioGuardado, mesGuardado, quincenaGuardada);
     if (idx >= target) continue;
     let value: number;
     try {
@@ -71,22 +77,31 @@ export async function getUltimoIngresoQuincena(userId: string, anio: number, mes
     } catch {
       continue;
     }
-    if (!Number.isFinite(value) || value <= 0) continue;
-    if (!best || idx > best.index) best = { index: idx, value };
+    if (!Number.isFinite(value) || value < 0) continue;
+    if (!porPeriodo.has(idx) || normal) porPeriodo.set(idx, value);
+  }
+  let best: { index: number; value: number } | null = null;
+  for (const [index, value] of porPeriodo) {
+    if (value > 0 && (!best || index > best.index)) best = { index, value };
   }
   return best?.value ?? 0;
 }
 
 export async function getIngresoQuincena(userId: string, anio: number, mes: number, quincena: number): Promise<number> {
-  const row = await db
-    .select({ value: settings.value })
+  const key = ingresoKey(anio, mes, quincena);
+  // Versiones anteriores guardaban el mes y el año intercambiados.
+  const legacyKey = ingresoKey(mes, anio, quincena);
+  const rows = await db
+    .select({ key: settings.key, value: settings.value })
     .from(settings)
-    .where(and(eq(settings.userId, userId), eq(settings.key, ingresoKey(anio, mes, quincena))))
+    .where(and(eq(settings.userId, userId), or(eq(settings.key, key), eq(settings.key, legacyKey))))
     .execute();
-  if (row[0]) {
+  for (const candidateKey of [key, legacyKey]) {
+    const row = rows.find((r) => r.key === candidateKey);
+    if (!row) continue;
     try {
-      const v = JSON.parse(row[0].value) as number;
-      if (Number.isFinite(v)) return v;
+      const v = JSON.parse(row.value) as number;
+      if (Number.isFinite(v) && v >= 0) return v;
     } catch {
       /* valor corrupto: usa el fallback */
     }

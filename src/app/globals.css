@@ -53,80 +53,80 @@
 }
 
 :root {
-  --background: #fafafa;
-  --foreground: #2d3748;
-  --card: #ffffff;
-  --card-foreground: #2d3748;
-  --popover: #ffffff;
-  --popover-foreground: #2d3748;
-  --primary: #2d3748;
+  --background: #f6f3ec;
+  --foreground: #26352f;
+  --card: #fffdf8;
+  --card-foreground: #26352f;
+  --popover: #fffdf8;
+  --popover-foreground: #26352f;
+  --primary: #236b55;
   --primary-foreground: #ffffff;
-  --secondary: #4a5568;
-  --secondary-foreground: #ffffff;
-  --muted: #eef0f3;
-  --muted-foreground: #4a5568;
-  --accent: #eef0f3;
-  --accent-foreground: #2d3748;
-  --destructive: #b86a62;
+  --secondary: #e8eee7;
+  --secondary-foreground: #294d40;
+  --muted: #ece9df;
+  --muted-foreground: #73786e;
+  --accent: #e6eee5;
+  --accent-foreground: #26352f;
+  --destructive: #bd5e4d;
   --destructive-foreground: #ffffff;
-  --border: #e6e8ec;
-  --input: #d8dbe1;
-  --ring: #2d3748;
-  --chart-1: #2d3748;
-  --chart-2: #5a8f6d;
-  --chart-3: #c9a24a;
-  --chart-4: #4a5568;
-  --chart-5: #b86a62;
-  --positive: #5a8f6d;
-  --warning: #c9a24a;
-  --info: #4a5568;
-  --brand: #2d3748;
+  --border: #e2dfd4;
+  --input: #d7d5c9;
+  --ring: #39856d;
+  --chart-1: #236b55;
+  --chart-2: #df9c47;
+  --chart-3: #6689aa;
+  --chart-4: #bf6657;
+  --chart-5: #8974a5;
+  --positive: #368268;
+  --warning: #bd812e;
+  --info: #6689aa;
+  --brand: #236b55;
   --radius: 0.75rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #2d3748;
-  --sidebar-primary: #2d3748;
+  --sidebar: #fcfaf4;
+  --sidebar-foreground: #26352f;
+  --sidebar-primary: #236b55;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef0f3;
-  --sidebar-accent-foreground: #2d3748;
-  --sidebar-border: #e6e8ec;
-  --sidebar-ring: #2d3748;
+  --sidebar-accent: #e6eee5;
+  --sidebar-accent-foreground: #26352f;
+  --sidebar-border: #e2dfd4;
+  --sidebar-ring: #39856d;
 }
 
 .dark {
-  --background: #17191e;
-  --foreground: #e6e8ee;
-  --card: #1f2229;
-  --card-foreground: #e6e8ee;
-  --popover: #1f2229;
-  --popover-foreground: #e6e8ee;
-  --primary: #4a5568;
+  --background: #171d1a;
+  --foreground: #e9eee6;
+  --card: #202923;
+  --card-foreground: #e9eee6;
+  --popover: #202923;
+  --popover-foreground: #e9eee6;
+  --primary: #3b8c70;
   --primary-foreground: #ffffff;
-  --secondary: #2d3748;
-  --secondary-foreground: #d5d9e0;
-  --muted: #23262e;
-  --muted-foreground: #9aa3b2;
-  --accent: #262b35;
-  --accent-foreground: #e6e8ee;
-  --destructive: #b86a62;
+  --secondary: #29362e;
+  --secondary-foreground: #d5e4d7;
+  --muted: #272e29;
+  --muted-foreground: #a0aa9d;
+  --accent: #2b3930;
+  --accent-foreground: #e9eee6;
+  --destructive: #c87563;
   --destructive-foreground: #ffffff;
   --border: rgb(255 255 255 / 0.08);
   --input: rgb(255 255 255 / 0.12);
-  --ring: #4a5568;
-  --chart-1: #2d3748;
-  --chart-2: #5a8f6d;
-  --chart-3: #c9a24a;
-  --chart-4: #4a5568;
-  --chart-5: #b86a62;
-  --positive: #5a8f6d;
-  --warning: #c9a24a;
-  --info: #9aa3b2;
-  --brand: #4a5568;
-  --sidebar: #1f2229;
-  --sidebar-foreground: #e6e8ee;
-  --sidebar-primary: #4a5568;
+  --ring: #59a888;
+  --chart-1: #49a17d;
+  --chart-2: #e3a74e;
+  --chart-3: #78a8c7;
+  --chart-4: #d47764;
+  --chart-5: #a58bc2;
+  --positive: #63b58d;
+  --warning: #e0ac50;
+  --info: #86b5d4;
+  --brand: #3b8c70;
+  --sidebar: #202923;
+  --sidebar-foreground: #e9eee6;
+  --sidebar-primary: #3b8c70;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #262b35;
-  --sidebar-accent-foreground: #e6e8ee;
+  --sidebar-accent: #2b3930;
+  --sidebar-accent-foreground: #e9eee6;
   --sidebar-border: rgb(255 255 255 / 0.08);
   --sidebar-ring: #4a5568;
 }
@@ -137,6 +137,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: radial-gradient(ellipse at 88% 0%, rgb(87 139 105 / 0.08), transparent 34rem);
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
@@ -148,9 +150,9 @@
 
 @layer utilities {
   .glass {
-    background: rgb(255 255 255 / 0.05);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
   .glow-hover {
     transition: box-shadow 0.3s ease, transform 0.3s ease;
@@ -159,10 +161,10 @@
     box-shadow: 0 0 30px rgb(45 55 72 / 0.25);
   }
   .btn-gradient {
-    background-image: linear-gradient(135deg, #2d3748, #4a5568);
+    background-image: linear-gradient(135deg, #236b55, #39856d);
   }
   .text-gradient {
-    background-image: linear-gradient(135deg, #2d3748, #4a5568);
+    background-image: linear-gradient(135deg, #236b55, #df9c47);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;

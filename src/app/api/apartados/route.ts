@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { apartados } from "@/lib/db/schema";
+import { apartados, expenseCategories } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
 import { cargarApartados } from "@/lib/apartados";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
       periodicidad,
       diaPago,
       mesPago,
-      budgetGroupId,
       categoriaId,
       cuentaId,
       montoQuincena,
@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
       const m = Number(mesPago);
       if (!Number.isInteger(m) || m < 1 || m > 12) return apiError("El mes de pago debe ser un número entre 1 y 12");
     }
-    if (budgetGroupId != null && !Number.isInteger(Number(budgetGroupId))) return apiError("Grupo inválido");
+    const category = categoriaId == null ? null : (await db.select().from(expenseCategories).where(and(eq(expenseCategories.id, Number(categoriaId)), eq(expenseCategories.userId, user.id))).execute())[0];
+    if (categoriaId != null && (!category || category.tipo !== "gasto")) return apiError("Categoría de gasto inválida");
     let fija = null as number | null;
     if (montoQuincena != null && montoQuincena !== "") {
       const n = Number(montoQuincena);
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
           periodicidad,
           diaPago: dia,
           mesPago: periodicidad === "anual" ? Number(mesPago) : null,
-          budgetGroupId: budgetGroupId != null ? Number(budgetGroupId) : null,
+          budgetGroupId: category?.budgetGroupId ?? null,
           categoriaId: categoriaId != null ? Number(categoriaId) : null,
           cuentaId: cuentaId != null ? Number(cuentaId) : null,
           fechaInicio: todayISO(),

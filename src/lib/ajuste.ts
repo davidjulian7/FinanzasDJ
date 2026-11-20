@@ -25,6 +25,7 @@ export interface CuentaAjuste {
 export interface AjusteInput {
   fecha: string;
   cuentas: { cuentaId: number; saldoReal: number }[];
+  gastosRecordados?: { cuentaId: number; descripcion: string; monto: number }[];
 }
 
 export async function getAjusteStatus(userId: string): Promise<AjusteStatus> {
@@ -133,11 +134,28 @@ export async function procesarAjuste(userId: string, input: AjusteInput) {
   let diferenciaTotal = 0;
 
   return db.transaction(async (tx) => {
+    const declaradosPorCuenta = new Map<number, number>();
+    for (const gasto of input.gastosRecordados ?? []) {
+      const cuenta = cuentasMap.get(gasto.cuentaId);
+      if (!cuenta || !gasto.descripcion?.trim() || !Number.isFinite(gasto.monto) || gasto.monto <= 0) continue;
+      if (cuenta.tipo === "credito") {
+        // Un gasto con tarjeta aumenta la deuda.
+        await tx.update(accounts).set({ saldoActual: cuenta.saldoActual + gasto.monto }).where(and(eq(accounts.id, cuenta.id), eq(accounts.userId, userId))).execute();
+      } else {
+        await tx.update(accounts).set({ saldoActual: cuenta.saldoActual - gasto.monto }).where(and(eq(accounts.id, cuenta.id), eq(accounts.userId, userId))).execute();
+      }
+      await tx.insert(transactions).values({ userId, descripcion: gasto.descripcion.trim(), monto: gasto.monto, tipo: "gasto", accountId: cuenta.id, categoryId: categoriaId, fecha: input.fecha || isoDate(new Date()), notas: "Gasto recordado durante el ajuste de cuenta" }).execute();
+      declaradosPorCuenta.set(cuenta.id, (declaradosPorCuenta.get(cuenta.id) ?? 0) + gasto.monto);
+      transaccionesCreadas++;
+    }
+
     for (const item of input.cuentas) {
       const cuenta = cuentasMap.get(item.cuentaId);
       if (!cuenta) continue;
 
-      const diff = calcularDiferencia(cuenta.tipo, cuenta.saldoActual, item.saldoReal);
+      const originalDiff = calcularDiferencia(cuenta.tipo, cuenta.saldoActual, item.saldoReal);
+      const declarado = declaradosPorCuenta.get(cuenta.id) ?? 0;
+      const diff = originalDiff < 0 ? Math.min(0, originalDiff + declarado) : originalDiff;
       if (Math.abs(diff) < 0.01) continue;
 
       diferenciaTotal += diff;

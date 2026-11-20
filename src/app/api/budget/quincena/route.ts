@@ -76,17 +76,22 @@ export async function GET(req: NextRequest) {
 
     const recurrentByGroup = new Map<number, typeof recurrents>();
     for (const r of recurrents) {
-      const arr = recurrentByGroup.get(r.budgetGroupId) ?? [];
+      const category = catsById.get(r.expenseCategoryId);
+      const groupId = category ? category.budgetGroupId : r.budgetGroupId;
+      if (!groupId) continue;
+      const arr = recurrentByGroup.get(groupId) ?? [];
       arr.push(r);
-      recurrentByGroup.set(r.budgetGroupId, arr);
+      recurrentByGroup.set(groupId, arr);
     }
 
     const apartadosByGroup = new Map<number, typeof activos>();
     for (const a of activos) {
-      if (!a.budgetGroupId) continue;
-      const arr = apartadosByGroup.get(a.budgetGroupId) ?? [];
+      const category = a.categoriaId ? catsById.get(a.categoriaId) : undefined;
+      const groupId = category ? category.budgetGroupId : a.budgetGroupId;
+      if (!groupId) continue;
+      const arr = apartadosByGroup.get(groupId) ?? [];
       arr.push(a);
-      apartadosByGroup.set(a.budgetGroupId, arr);
+      apartadosByGroup.set(groupId, arr);
     }
 
     const regla: ReglaPct = await getReglaPct(user.id);

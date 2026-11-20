@@ -38,8 +38,7 @@ const NAV = [
   { href: "/cuentas", label: "Cuentas", icon: CreditCard },
   { href: "/ajuste", label: "Ajuste de cuentas", icon: Wrench },
   { href: "/presupuesto", label: "Presupuesto", icon: PiggyBank },
-  { href: "/presupuesto/apartados", label: "Apartados", icon: Coins },
-  { href: "/gastos-recurrentes", label: "Gastos recurrentes", icon: CalendarClock },
+  { href: "/presupuesto/apartados", label: "Planificación", icon: Coins },
   { href: "/deudas", label: "Deudas", icon: HandCoins },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
@@ -52,8 +51,8 @@ const TITLES: Record<string, string> = {
   "/presupuesto": "Presupuesto",
   "/presupuesto/configuracion": "Configurar presupuesto",
   "/presupuesto/quincena": "Ejecución quincena",
-  "/presupuesto/apartados": "Apartados",
-  "/gastos-recurrentes": "Gastos recurrentes",
+  "/presupuesto/apartados": "Planificación",
+  "/gastos-recurrentes": "Planificación · Pagos periódicos",
   "/deudas": "Deudas",
   "/configuracion": "Configuración",
 };

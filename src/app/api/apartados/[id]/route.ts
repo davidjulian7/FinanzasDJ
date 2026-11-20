@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { apartados, apartadoContribuciones, transactions } from "@/lib/db/schema";
+import { apartados, apartadoContribuciones, transactions, expenseCategories } from "@/lib/db/schema";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
 
@@ -14,7 +14,6 @@ const EDITABLES = [
   "periodicidad",
   "diaPago",
   "mesPago",
-  "budgetGroupId",
   "categoriaId",
   "cuentaId",
   "icono",
@@ -40,6 +39,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const body = await req.json();
     const set: Record<string, unknown> = {};
+    if ("categoriaId" in body) {
+      const categoryId = body.categoriaId == null || body.categoriaId === "" ? null : Number(body.categoriaId);
+      const category = categoryId == null ? null : (await db.select().from(expenseCategories).where(and(eq(expenseCategories.id, categoryId), eq(expenseCategories.userId, user.id))).execute())[0];
+      if (categoryId != null && (!category || category.tipo !== "gasto")) return apiError("Categoría de gasto inválida");
+      set.categoriaId = categoryId;
+      set.budgetGroupId = category?.budgetGroupId ?? null;
+    }
     for (const key of EDITABLES) {
       if (key in body) {
         const v = body[key];
@@ -71,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           }
         } else if (key === "activo") {
           set[key] = Boolean(v);
-        } else if (key === "budgetGroupId" || key === "categoriaId" || key === "cuentaId") {
+        } else if (key === "categoriaId" || key === "cuentaId") {
           set[key] = v == null || v === "" ? null : Number(v);
         } else if (key === "nombre") {
           if (!String(v).trim()) return apiError("El nombre es obligatorio");

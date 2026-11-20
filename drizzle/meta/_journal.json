@@ -15,6 +15,13 @@
       "when": 1786659865837,
       "tag": "0001_calm_morg",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795200000000,
+      "tag": "0003_category_budget_source",
+      "breakpoints": true
     }
   ]
 }

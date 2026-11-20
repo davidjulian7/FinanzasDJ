@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
 import { api } from "@/lib/api";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,7 +45,6 @@ interface FormState {
   mesPago: string;
   cuotaFija: boolean;
   montoQuincena: string;
-  budgetGroupId: string;
   categoriaId: string;
   cuentaId: string;
   icono: string;
@@ -62,7 +61,6 @@ const EMPTY: FormState = {
   mesPago: "",
   cuotaFija: false,
   montoQuincena: "",
-  budgetGroupId: "",
   categoriaId: "",
   cuentaId: "",
   icono: "Home",
@@ -83,22 +81,8 @@ export function ApartadoForm({
   onSaved: () => void;
 }) {
   const { accounts, expenseCategories } = useReference();
-  const [groups, setGroups] = useState<Array<{ id: number; key: string; label: string; color: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
-
-  const fetchGroups = useCallback(async () => {
-    try {
-      const grps = await api.get<Array<{ id: number; key: string; label: string; color: string }>>("/api/budget-groups");
-      setGroups(grps);
-    } catch {
-      toast.error("No se pudieron cargar los grupos");
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchGroups();
-  }, [fetchGroups]);
 
   useEffect(() => {
     if (!open) return;
@@ -111,7 +95,6 @@ export function ApartadoForm({
         mesPago: initialData.mesPago ? String(initialData.mesPago) : "",
         cuotaFija: initialData.montoQuincena != null,
         montoQuincena: initialData.montoQuincena != null ? String(initialData.montoQuincena) : "",
-        budgetGroupId: initialData.budgetGroupId ? String(initialData.budgetGroupId) : "",
         categoriaId: initialData.categoriaId ? String(initialData.categoriaId) : "",
         cuentaId: initialData.cuentaId ? String(initialData.cuentaId) : "",
         icono: initialData.icono,
@@ -148,7 +131,7 @@ export function ApartadoForm({
       const m = Number(form.mesPago);
       if (!Number.isInteger(m) || m < 1 || m > 12) return toast.error("Elige el mes de pago");
     }
-    if (!form.budgetGroupId) return toast.error("Elige el grupo de presupuesto");
+    if (!form.categoriaId) return toast.error("Elige una categoría para clasificar este apartado");
 
     const body = {
       nombre: form.nombre,
@@ -156,7 +139,6 @@ export function ApartadoForm({
       periodicidad: form.periodicidad,
       diaPago: dia,
       mesPago: form.periodicidad === "anual" ? Number(form.mesPago) : null,
-      budgetGroupId: Number(form.budgetGroupId),
       categoriaId: form.categoriaId ? Number(form.categoriaId) : null,
       cuentaId: form.cuentaId ? Number(form.cuentaId) : null,
       montoQuincena: form.cuotaFija ? Number(form.montoQuincena) : null,
@@ -245,22 +227,6 @@ export function ApartadoForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Grupo (50/30/20) *</Label>
-            <Select value={form.budgetGroupId} onValueChange={(v) => set("budgetGroupId", v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Elige grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                {groups.map((g) => (
-                  <SelectItem key={g.id} value={String(g.id)}>
-                    {g.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="ap-cuotafija">Cuota fija por quincena</Label>
               <Switch id="ap-cuotafija" checked={form.cuotaFija} onCheckedChange={(v) => set("cuotaFija", v)} />
@@ -291,10 +257,10 @@ export function ApartadoForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Categoría de gasto</Label>
+            <Label>Categoría de gasto *</Label>
             <Select value={form.categoriaId} onValueChange={(v) => set("categoriaId", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Elige categoría (opcional)" />
+                <SelectValue placeholder="Elige categoría" />
               </SelectTrigger>
               <SelectContent>
                 {categoriasGasto.map((c) => (
@@ -304,6 +270,7 @@ export function ApartadoForm({
                 ))}
               </SelectContent>
             </Select>
+            {form.categoriaId && <p className="text-xs text-muted-foreground">La categoría determina el grupo 50/30/20.</p>}
             <p className="text-xs text-muted-foreground">
               El apartado mostrará cuánto gastaste en esa categoría durante la quincena (con cualquier cuenta), para
               controlar que no superes el límite. También se usa al registrar el pago.

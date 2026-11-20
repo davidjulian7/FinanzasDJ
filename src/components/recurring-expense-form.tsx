@@ -34,7 +34,6 @@ interface RecurringExpenseFormData {
   proximoCobro: string;
   expenseCategoryId: number;
   accountId: number;
-  budgetGroupId: number;
   nota: string;
   activo: boolean;
 }
@@ -50,12 +49,10 @@ interface RecurringExpenseFormProps {
     proximoCobro: string;
     expenseCategoryId: number;
     accountId: number;
-    budgetGroupId: number;
     nota: string | null;
     activo: boolean;
     expenseCategory?: { id: number; nombre: string; [key: string]: unknown } | null;
     account?: { id: number; nombre: string; [key: string]: unknown } | null;
-    budgetGroup?: { id: number; label: string; [key: string]: unknown } | null;
   } | null;
   onSaved: () => void;
 }
@@ -71,7 +68,6 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Array<{ id: number; nombre: string; tipo: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>([]);
   const [accounts, setAccounts] = useState<Array<{ id: number; nombre: string; tipo: string }>>([]);
-  const [groups, setGroups] = useState<Array<{ id: number; key: string; label: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState<RecurringExpenseFormData>({
@@ -81,21 +77,18 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
     proximoCobro: todayISO(),
     expenseCategoryId: 0,
     accountId: 0,
-    budgetGroupId: 0,
     nota: "",
     activo: true,
   });
 
   const fetchRefs = useCallback(async () => {
     try {
-      const [cats, accs, grps] = await Promise.all([
+      const [cats, accs] = await Promise.all([
         api.get<Array<{ id: number; nombre: string; tipo: string; budgetGroupId: number | null; budgetGroup?: { id: number; label: string } | null }>>("/api/expense-categories"),
         api.get<Array<{ id: number; nombre: string; tipo: string }>>("/api/accounts"),
-        api.get<Array<{ id: number; key: string; label: string }>>("/api/budget-groups"),
       ]);
       setCategories(cats);
       setAccounts(accs);
-      setGroups(grps);
     } catch {
       toast.error("No se pudieron cargar las referencias");
     }
@@ -114,7 +107,6 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
         proximoCobro: initialData.proximoCobro,
         expenseCategoryId: initialData.expenseCategoryId,
         accountId: initialData.accountId,
-        budgetGroupId: initialData.budgetGroupId,
         nota: initialData.nota || "",
         activo: initialData.activo,
       });
@@ -126,7 +118,6 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
     proximoCobro: todayISO(),
         expenseCategoryId: 0,
         accountId: 0,
-        budgetGroupId: 0,
         nota: "",
         activo: true,
       });
@@ -134,7 +125,7 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
   }, [initialData, open]);
 
   const handleSubmit = async () => {
-    if (!formData.nombre.trim() || !formData.monto || !formData.expenseCategoryId || !formData.accountId || !formData.budgetGroupId || !formData.proximoCobro) {
+    if (!formData.nombre.trim() || !formData.monto || !formData.expenseCategoryId || !formData.accountId || !formData.proximoCobro) {
       toast.error("Completa todos los campos obligatorios");
       return;
     }
@@ -240,6 +231,10 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
                   ))}
               </SelectContent>
             </Select>
+            {(() => {
+              const category = categories.find((c) => c.id === formData.expenseCategoryId);
+              return <p className="text-xs text-muted-foreground">Presupuesto: {category?.budgetGroup?.label ?? "Fuera del presupuesto"}</p>;
+            })()}
           </div>
 
           <div className="space-y-2">
@@ -258,21 +253,6 @@ export function RecurringExpenseForm({ open, onOpenChange, initialData, onSaved 
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Grupo de presupuesto *</Label>
-            <Select value={String(formData.budgetGroupId)} onValueChange={(v) => handleChange("budgetGroupId", Number(v))}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecciona grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                {groups.map((g) => (
-                  <SelectItem key={g.id} value={String(g.id)}>
-                    {g.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="nota">Nota</Label>

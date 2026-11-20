@@ -69,9 +69,7 @@ export const recurringExpenses = pgTable("recurring_expenses", {
   accountId: integer("account_id")
     .notNull()
     .references(() => accounts.id),
-  budgetGroupId: integer("budget_group_id")
-    .notNull()
-    .references(() => budgetGroups.id),
+  budgetGroupId: integer("budget_group_id").references(() => budgetGroups.id),
   nota: text("nota"),
   activo: boolean("activo").notNull().default(true),
 });

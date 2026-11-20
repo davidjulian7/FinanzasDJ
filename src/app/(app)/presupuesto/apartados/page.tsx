@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ApartadoCard } from "@/components/apartado-card";
 import { ApartadoForm } from "@/components/apartado-form";
 import { ApartadoPagoModal } from "@/components/apartado-pago-modal";
@@ -18,6 +19,7 @@ export default function ApartadosPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ApartadoRow | null>(null);
   const [paying, setPaying] = useState<ApartadoRow | null>(null);
+  const [deleting, setDeleting] = useState<ApartadoRow | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -76,7 +78,6 @@ export default function ApartadosPage() {
   }
 
   async function eliminar(a: ApartadoRow) {
-    if (!window.confirm(`¿Eliminar el apartado "${a.nombre}"? Sus contribuciones se borrarán; los pagos ya registrados se conservan.`)) return;
     setBusyId(a.id);
     try {
       await api.delete(`/api/apartados/${a.id}`);
@@ -86,6 +87,7 @@ export default function ApartadosPage() {
       toast.error(e instanceof Error ? e.message : "No se pudo eliminar");
     } finally {
       setBusyId(null);
+      setDeleting(null);
     }
   }
 
@@ -100,7 +102,7 @@ export default function ApartadosPage() {
         setFormOpen(true);
       }}
       onToggle={toggle}
-      onDelete={eliminar}
+      onDelete={setDeleting}
     />
   );
 
@@ -185,6 +187,23 @@ export default function ApartadosPage() {
         apartado={paying}
         onSaved={cargar}
       />
+
+      <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open && busyId === null) setDeleting(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar este apartado?</DialogTitle>
+            <DialogDescription>
+              {deleting ? `Se eliminará “${deleting.nombre}” y sus aportaciones guardadas. Los pagos que ya registraste seguirán en tus transacciones.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)} disabled={busyId !== null}>Conservar apartado</Button>
+            <Button variant="destructive" onClick={() => deleting && eliminar(deleting)} disabled={busyId !== null}>
+              {busyId === deleting?.id ? "Eliminando…" : "Sí, eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

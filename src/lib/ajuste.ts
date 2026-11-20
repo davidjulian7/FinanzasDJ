@@ -34,6 +34,7 @@ export interface CuentaAjuste {
 export interface AjusteInput {
   fecha: string;
   cuentas: { cuentaId: number; saldoReal: number }[];
+  gastosRecordados?: { cuentaId: number; descripcion: string; monto: number }[];
 }
 
 export async function getAjusteStatus(userId: string, queryDb: AjusteDb = db): Promise<AjusteStatus> {
@@ -120,14 +121,14 @@ export async function procesarAjuste(userId: string, input: AjusteInput): Promis
   const ids = new Set<number>();
   for (const item of input.cuentas) {
     if (!item || !Number.isInteger(item.cuentaId) || item.cuentaId <= 0 || !Number.isFinite(item.saldoReal)) {
-      throw new AjusteError("Los saldos y las cuentas deben ser válidos");
+      throw new AjusteError("Los saldos y las cuentas deben ser v�lidos");
     }
     if (ids.has(item.cuentaId)) throw new AjusteError("Una cuenta no puede aparecer dos veces en el ajuste");
     ids.add(item.cuentaId);
   }
   const fecha = input.fecha || isoDate(new Date());
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(Date.parse(fecha)) || new Date(fecha).toISOString().slice(0, 10) !== fecha) {
-    throw new AjusteError("La fecha del ajuste no es válida");
+    throw new AjusteError("La fecha del ajuste no es v�lida");
   }
 
   return db.transaction(async (tx) => {
@@ -140,19 +141,33 @@ export async function procesarAjuste(userId: string, input: AjusteInput): Promis
       .execute();
     const cuentasMap = new Map(cuentasLock.map((c) => [c.id, c]));
     if (input.cuentas.some((item) => !cuentasMap.has(item.cuentaId))) {
-      throw new AjusteError("Una de las cuentas ya no está disponible. Recarga el ajuste.");
+      throw new AjusteError("Una de las cuentas ya no est� disponible. Recarga el ajuste.");
     }
 
+    const gastosPorCuenta = new Map<number, NonNullable<AjusteInput["gastosRecordados"]>>();
+    for (const gasto of input.gastosRecordados ?? []) {
+      if (!gasto || !Number.isInteger(gasto.cuentaId) || !ids.has(gasto.cuentaId) || !gasto.descripcion?.trim() || !Number.isFinite(gasto.monto) || gasto.monto <= 0) throw new AjusteError("Revisa los gastos recordados");
+      const gastos = gastosPorCuenta.get(gasto.cuentaId) ?? [];
+      gastos.push({ ...gasto, monto: Math.round(gasto.monto * 100) / 100 });
+      gastosPorCuenta.set(gasto.cuentaId, gastos);
+    }
     const diferencias: number[] = [];
+    let transaccionesCreadas = 0;
     let categoriaId: number | null = null;
     for (const item of input.cuentas) {
       const cuenta = cuentasMap.get(item.cuentaId)!;
       const saldoReal = Math.round(item.saldoReal * 100) / 100;
       const diff = calcularDiferenciaAjuste(cuenta.tipo, cuenta.saldoActual, saldoReal);
-      if (diff === 0) continue;
       diferencias.push(diff);
       const esGasto = diff < 0;
-      if (esGasto && categoriaId === null) {
+      const gastos = gastosPorCuenta.get(cuenta.id) ?? [];
+      const declarado = Math.round(gastos.reduce((sum, gasto) => sum + gasto.monto, 0) * 100) / 100;
+      const faltante = esGasto ? Math.abs(diff) : 0;
+      if (declarado > faltante + 0.001) throw new AjusteError(`Los gastos recordados de ${cuenta.nombre} superan la diferencia pendiente (${faltante.toFixed(2)})`);
+      if (gastos.length > 0 && !esGasto) throw new AjusteError(`No hay faltante que declarar en ${cuenta.nombre}`);
+      if (diff === 0 && gastos.length === 0) continue;
+      const restante = Math.round((faltante - declarado) * 100) / 100;
+      if ((gastos.length > 0 || restante > 0) && categoriaId === null) {
         categoriaId = await getOrCreateCategoriaAjuste(userId, tx);
       }
 
@@ -162,19 +177,35 @@ export async function procesarAjuste(userId: string, input: AjusteInput): Promis
         .where(and(eq(accounts.id, cuenta.id), eq(accounts.userId, userId)))
         .execute();
 
+      for (const gasto of gastos) {
+        await tx.insert(transactions).values({
+          userId,
+          descripcion: gasto.descripcion.trim(),
+          monto: gasto.monto,
+          tipo: "gasto",
+          accountId: cuenta.id,
+          categoryId: categoriaId,
+          fecha,
+          notas: "Gasto recordado durante el ajuste de cuentas",
+        }).execute();
+        transaccionesCreadas++;
+      }
+
+      if (esGasto && restante === 0) continue;
       await tx
         .insert(transactions)
         .values({
           userId,
           descripcion: `Ajuste: ${cuenta.nombre}`,
-          monto: Math.abs(diff),
+          monto: esGasto ? restante : diff,
           tipo: esGasto ? "gasto" : "ingreso",
           accountId: cuenta.id,
           categoryId: esGasto ? categoriaId : null,
           fecha,
-          notas: `Ajuste de cuentas · Saldo sistema: $${cuenta.saldoActual.toLocaleString("es-MX")} · Saldo real: $${saldoReal.toLocaleString("es-MX")}`,
+          notas: `Ajuste de cuentas � Saldo sistema: $${cuenta.saldoActual.toLocaleString("es-MX")} � Saldo real: $${saldoReal.toLocaleString("es-MX")}`,
         })
         .execute();
+      transaccionesCreadas++;
     }
 
     await tx
@@ -186,6 +217,6 @@ export async function procesarAjuste(userId: string, input: AjusteInput): Promis
       })
       .execute();
 
-    return resumirAjuste(diferencias);
+    return { ...resumirAjuste(diferencias), transaccionesCreadas };
   });
 }

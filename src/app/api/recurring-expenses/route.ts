@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       ...r,
       expenseCategory: catById.get(r.expenseCategoryId),
       account: accById.get(r.accountId),
-      budgetGroup: groupById.get(r.budgetGroupId),
+      budgetGroup: groupById.get(r.expenseCategoryId ? catById.get(r.expenseCategoryId)?.budgetGroupId ?? -1 : -1),
     }));
 
     return NextResponse.json(withRelations);
@@ -52,11 +52,13 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user) return unauthorized();
     const body = await req.json();
-    const { nombre, monto, frecuencia, proximoCobro, expenseCategoryId, accountId, budgetGroupId, nota } = body;
+    const { nombre, monto, frecuencia, proximoCobro, expenseCategoryId, accountId, nota } = body;
 
-    if (!nombre || !monto || !frecuencia || !proximoCobro || !expenseCategoryId || !accountId || !budgetGroupId) {
+    if (!nombre || !monto || !frecuencia || !proximoCobro || !expenseCategoryId || !accountId) {
       return apiError("Todos los campos son requeridos");
     }
+    const category = (await db.select().from(expenseCategories).where(and(eq(expenseCategories.id, Number(expenseCategoryId)), eq(expenseCategories.userId, user.id))).execute())[0];
+    if (!category || category.tipo !== "gasto") return apiError("Selecciona una categoría de gasto válida");
     if (!["semanal", "quincenal", "mensual", "anual"].includes(frecuencia)) {
       return apiError("Frecuencia inválida");
     }
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest) {
           proximoCobro,
           expenseCategoryId,
           accountId,
-          budgetGroupId,
+          budgetGroupId: category.budgetGroupId,
           nota: nota ?? null,
           activo: true,
         })

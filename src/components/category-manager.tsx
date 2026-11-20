@@ -239,7 +239,7 @@ export function CategoryManager() {
             </div>
             {tipo === "gasto" && (
               <div className="space-y-1.5">
-                <Label>Grupo 50/30/20 (opcional)</Label>
+                <Label>Clasificación presupuestaria</Label>
                 <Select value={grupo} onValueChange={setGrupo}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Sin grupo" />
@@ -309,7 +309,7 @@ export function CategoryManager() {
             </div>
             {editando?.tipo === "gasto" && (
               <div className="space-y-1.5">
-                <Label>Grupo 50/30/20 (opcional)</Label>
+                <Label>Clasificación presupuestaria</Label>
                 <Select value={editGrupo} onValueChange={setEditGrupo}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Sin grupo" />

@@ -157,7 +157,7 @@ export async function cargarApartados(userId: string): Promise<ApartadoRow[]> {
     resultado.push({
       ...a,
       ...info,
-      grupo: await grupoDe(a.budgetGroupId),
+      grupo: await grupoDe(cat ? cat.budgetGroupId : a.budgetGroupId),
       categoria: cat
         ? {
             ...cat,

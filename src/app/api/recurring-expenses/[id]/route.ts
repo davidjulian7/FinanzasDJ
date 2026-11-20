@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { recurringExpenses } from "@/lib/db/schema";
+import { recurringExpenses, expenseCategories } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { apiError, handleError, unauthorized } from "@/lib/api-server";
 import { requireUser } from "@/lib/auth";
@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!user) return unauthorized();
     const { id } = await params;
     const body = await req.json();
-    const { nombre, monto, frecuencia, proximoCobro, expenseCategoryId, accountId, budgetGroupId, nota, activo } = body;
+    const { nombre, monto, frecuencia, proximoCobro, expenseCategoryId, accountId, nota, activo } = body;
 
     const existing = (
       await db
@@ -35,9 +35,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       updateData.frecuencia = frecuencia;
     }
     if (proximoCobro !== undefined) updateData.proximoCobro = proximoCobro;
-    if (expenseCategoryId !== undefined) updateData.expenseCategoryId = expenseCategoryId;
+    if (expenseCategoryId !== undefined) {
+      const category = (await db.select().from(expenseCategories).where(and(eq(expenseCategories.id, Number(expenseCategoryId)), eq(expenseCategories.userId, user.id))).execute())[0];
+      if (!category || category.tipo !== "gasto") return apiError("Categoría de gasto inválida");
+      updateData.expenseCategoryId = category.id;
+      updateData.budgetGroupId = category.budgetGroupId;
+    }
     if (accountId !== undefined) updateData.accountId = accountId;
-    if (budgetGroupId !== undefined) updateData.budgetGroupId = budgetGroupId;
     if (nota !== undefined) updateData.nota = nota ?? null;
     if (activo !== undefined) updateData.activo = activo ? true : false;
 
